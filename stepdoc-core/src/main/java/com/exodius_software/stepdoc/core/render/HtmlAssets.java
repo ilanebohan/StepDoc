@@ -40,7 +40,7 @@ final class HtmlAssets {
             .keyword-other { color: var(--other); }
             .parameters { margin: 0; padding-left: 18px; }
             .parameters .name { font-weight: 600; }
-            .examples { color: var(--muted); }
+            .examples, .matching { color: var(--muted); }
             .source { color: var(--muted); font-size: 13px; white-space: nowrap; }
             .problems li { margin-bottom: 4px; }
             #no-match { color: var(--muted); }

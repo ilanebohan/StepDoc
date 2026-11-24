@@ -124,6 +124,7 @@ public void addCopies(int quantity, String title) { ... }
 | A Cucumber Expression: `I add {int} copies of {string}` | Each parameter with its type: `{int}`, `{string}`, `{}`, or your own `{color}` |
 | A regular expression: `^I pay by (card\|cash)$` | Each capturing group, with the Java type of the method parameter |
 | A data table or a doc string as last parameter | A parameter marked `data table` or `doc string` |
+| A parameter type of yours: `@ParameterType("red\|blue")` on a method `color` | Listed under "Parameter types" with its Javadoc; each `{color}` parameter shows what it matches |
 
 Hooks (`@Before`, `@After`) and annotations of other libraries are ignored.
 
@@ -234,9 +235,10 @@ It prefers saying nothing to being wrong:
 
 - If it finds **no feature file**, or **cannot parse one**, the rule is skipped and a warning
   says why. Check `featureDirectories` if your features are not in `src/test/resources`.
-- A step that uses a **parameter type of your own** (`{color}`) is considered used as soon as
-  the rest of its text matches a scenario step, because StepDoc does not know which values the
-  type accepts.
+- A step that uses a **parameter type of your own** (`{color}`) is matched with the regular
+  expression of its `@ParameterType`. When StepDoc cannot find that declaration (a type
+  registered in code, or coming from a dependency), the step is considered used as soon as the
+  rest of its text matches a scenario step.
 
 ### Run it on every build
 
@@ -288,7 +290,7 @@ If `sourceDirectory` does not exist, StepDoc says so and does nothing.
 ## Messages and how to fix them
 
 Problems found in your sources appear in the Problems section of the catalog, as warnings of
-`generate`, and as `source-problem` issues of `check`. The last two of this table only come
+`generate`, and as `source-problem` issues of `check`. The last three of this table only come
 from `check`, the only goal that reads feature files.
 
 | Message | Meaning | What to do |
@@ -298,6 +300,9 @@ from `check`, the only goal that reads feature files.
 | `Step expression of method ... cannot be read from the scanned sources, the step was skipped` | The step text is a constant declared outside `sourceDirectory` (a dependency, another module), or a computed value | Write the text in the annotation, or declare the constant in the scanned sources |
 | `Step "..." has 1 parameter(s) but method ... takes 0` | The step text and the method do not have the same number of parameters. Cucumber will fail on this step | Fix the expression or the method |
 | `@StepDoc documents 2 parameter(s) but method ... takes 1` | `@StepDoc` describes more parameters than the method has | Remove the extra `@StepDoc.Param` |
+| `Parameter type '...' cannot be read from the scanned sources, it was ignored` | The regular expression of a `@ParameterType` is a constant declared outside `sourceDirectory`, or a computed value | Write it in the annotation, or declare the constant in the scanned sources |
+| `Parameter type '...' has an invalid regular expression (...), it was ignored` | The regular expression does not compile. Cucumber will fail on it too | Fix the expression |
+| `Parameter type '...' cannot be used: ...` | Cucumber refuses this declaration, for instance a name declared twice or the name of a built-in type | Rename or remove one of the declarations |
 | `Feature file could not be parsed: ...` | A `.feature` file is not valid Gherkin | Fix the file; `unused-step` is skipped until then |
 | `Step "..." cannot be matched against feature files: ...` | The step text is not a valid Cucumber Expression or regular expression | Fix the expression; the message gives the column |
 
@@ -317,7 +322,9 @@ Configuration errors stop the build at once and say which setting is wrong, for 
 - **Constants declared outside the scanned sources** (a dependency, another module) have no
   value for StepDoc: a step whose text is such a constant is reported and skipped.
 - **Steps written as lambdas** (`cucumber-java8`) are not detected.
-- **Your own parameter types** (`{color}`) are shown by name, without the values they accept.
+- **Parameter types that are not declared with `@ParameterType`** in the scanned sources
+  (registered in code, or coming from a dependency) are shown by name only, and assumed to
+  match anything.
 - **Keywords added by a Cucumber newer than StepDoc** are not classified as Given, When or
   Then when imported by name, and not detected behind a `.*` import, until StepDoc is updated.
 - **Steps that no step definition implements** are not reported: Cucumber already tells you

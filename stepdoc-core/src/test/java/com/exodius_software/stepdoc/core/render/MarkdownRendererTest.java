@@ -11,7 +11,9 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.exodius_software.stepdoc.core.model.ExpressionSyntax;
+import com.exodius_software.stepdoc.core.model.ParameterTypeDefinition;
 import com.exodius_software.stepdoc.core.model.SourceLocation;
+import com.exodius_software.stepdoc.core.model.StepCatalog;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.model.StepKind;
 import com.exodius_software.stepdoc.core.model.StepParameter;
@@ -86,6 +88,28 @@ class MarkdownRendererTest {
         assertThat(renderer.render(catalog, RenderOptions.defaults()))
                 .contains("## Problems\n\n- `steps/Broken.java:4` File could not be parsed\n");
         assertThat(renderer.render(catalog, hidden)).doesNotContain("Problems");
+    }
+
+    @Test
+    void showsWhatADeclaredParameterTypeMatches() {
+        StepDefinition step = step(StepKind.WHEN, "I pick a {color} cover", "Picks a cover", "shop.CartSteps", 4,
+                expressionParameter("color", "String", "color", "cover color"));
+        ParameterTypeDefinition color = new ParameterTypeDefinition("color", "red|blue", "Color of a cover.",
+                new SourceLocation("steps/Types.java", 9));
+
+        String markdown = renderer.render(new StepCatalog(List.of(step), List.of(color), List.of()),
+                RenderOptions.defaults());
+
+        assertThat(markdown)
+                .contains("| **color** `{color}` matching `red\\|blue` cover color |")
+                .endsWith("""
+
+                        ## Parameter types
+
+                        | Name | Matches | Description | Source |
+                        | --- | --- | --- | --- |
+                        | `{color}` | `red\\|blue` | Color of a cover. | `steps/Types.java:9` |
+                        """);
     }
 
     @Test

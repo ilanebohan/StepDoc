@@ -2,9 +2,12 @@ package com.exodius_software.stepdoc.core.render;
 
 import static java.util.stream.Collectors.joining;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
+import com.exodius_software.stepdoc.core.model.ParameterTypeDefinition;
 import com.exodius_software.stepdoc.core.model.Problem;
 import com.exodius_software.stepdoc.core.model.StepCatalog;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
@@ -26,10 +29,14 @@ final class HtmlRenderer implements CatalogRenderer {
         html.append("<body>\n");
         appendHeader(html, options.title(), catalog, sections);
         html.append("<main>\n");
+        Map<String, ParameterTypeDefinition> types = CatalogLayout.parameterTypesByName(catalog);
         for (Section section : sections) {
-            appendSection(html, section, options);
+            appendSection(html, section, options, types);
         }
         html.append("<p id=\"no-match\" hidden>No step matches the filter.</p>\n");
+        if (!types.isEmpty()) {
+            appendParameterTypes(html, types.values(), options);
+        }
         if (options.showProblems() && !catalog.problems().isEmpty()) {
             appendProblems(html, catalog.problems());
         }
@@ -60,7 +67,8 @@ final class HtmlRenderer implements CatalogRenderer {
         html.append("</header>\n");
     }
 
-    private static void appendSection(StringBuilder html, Section section, RenderOptions options) {
+    private static void appendSection(StringBuilder html, Section section, RenderOptions options,
+                                      Map<String, ParameterTypeDefinition> types) {
         html.append("<section class=\"group\">\n<h2>").append(escape(section.title())).append("</h2>\n");
         if (!section.subtitle().isEmpty()) {
             html.append("<p class=\"subtitle\"><code>").append(escape(section.subtitle())).append("</code></p>\n");
@@ -71,12 +79,13 @@ final class HtmlRenderer implements CatalogRenderer {
         }
         html.append("</tr></thead>\n<tbody>\n");
         for (StepDefinition step : section.steps()) {
-            appendStep(html, step, options);
+            appendStep(html, step, options, types);
         }
         html.append("</tbody>\n</table>\n</section>\n");
     }
 
-    private static void appendStep(StringBuilder html, StepDefinition step, RenderOptions options) {
+    private static void appendStep(StringBuilder html, StepDefinition step, RenderOptions options,
+                                   Map<String, ParameterTypeDefinition> types) {
         html.append("<tr>")
                 .append("<td><span class=\"keyword keyword-").append(step.kind().name().toLowerCase(Locale.ROOT))
                 .append("\">").append(escape(step.keyword())).append("</span></td>")
@@ -85,7 +94,7 @@ final class HtmlRenderer implements CatalogRenderer {
                 .append("<td>");
         if (!step.parameters().isEmpty()) {
             html.append("<ul class=\"parameters\">");
-            step.parameters().forEach(parameter -> appendParameter(html, step, parameter));
+            step.parameters().forEach(parameter -> appendParameter(html, step, parameter, types));
             html.append("</ul>");
         }
         html.append("</td>");
@@ -95,7 +104,8 @@ final class HtmlRenderer implements CatalogRenderer {
         html.append("</tr>\n");
     }
 
-    private static void appendParameter(StringBuilder html, StepDefinition step, StepParameter parameter) {
+    private static void appendParameter(StringBuilder html, StepDefinition step, StepParameter parameter,
+                                        Map<String, ParameterTypeDefinition> types) {
         html.append("<li>");
         if (!parameter.name().isEmpty()) {
             html.append("<span class=\"name\">").append(escape(parameter.name())).append("</span> ");
@@ -104,6 +114,9 @@ final class HtmlRenderer implements CatalogRenderer {
         if (!type.isEmpty()) {
             html.append("<code>").append(escape(type)).append("</code>");
         }
+        CatalogLayout.declaredTypeOf(parameter, types).ifPresent(declared -> html
+                .append(" <span class=\"matching\">matching <code>").append(escape(declared.regex()))
+                .append("</code></span>"));
         if (!parameter.description().isEmpty()) {
             html.append(" ").append(escape(parameter.description()).replace("\n\n", "<br>"));
         }
@@ -114,6 +127,26 @@ final class HtmlRenderer implements CatalogRenderer {
             html.append(" <span class=\"examples\">e.g. ").append(examples).append("</span>");
         }
         html.append("</li>");
+    }
+
+    private static void appendParameterTypes(StringBuilder html, Collection<ParameterTypeDefinition> types,
+                                             RenderOptions options) {
+        html.append("<section class=\"parameter-types\">\n<h2>Parameter types</h2>\n")
+                .append("<table>\n<thead><tr><th>Name</th><th>Matches</th><th>Description</th>");
+        if (options.showSourceLocation()) {
+            html.append("<th>Source</th>");
+        }
+        html.append("</tr></thead>\n<tbody>\n");
+        for (ParameterTypeDefinition type : types) {
+            html.append("<tr><td><code>{").append(escape(type.name())).append("}</code></td>")
+                    .append("<td><code>").append(escape(type.regex())).append("</code></td>")
+                    .append("<td>").append(paragraphs(type.description())).append("</td>");
+            if (options.showSourceLocation()) {
+                html.append("<td class=\"source\">").append(escape(type.location().toString())).append("</td>");
+            }
+            html.append("</tr>\n");
+        }
+        html.append("</tbody>\n</table>\n</section>\n");
     }
 
     private static void appendProblems(StringBuilder html, List<Problem> problems) {

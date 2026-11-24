@@ -209,6 +209,59 @@ class StepUsageAnalyzerTest {
     }
 
     @Test
+    void matchesADeclaredParameterTypeWithItsOwnRegex() throws IOException {
+        String coverSteps = """
+                import io.cucumber.java.ParameterType;
+                import io.cucumber.java.en.When;
+
+                class CoverSteps {
+                    @ParameterType("red|blue") public String color(String value) { return value; }
+                    @When("I pick a {color} cover") public void pick(String color) {}
+                }
+                """;
+        write(features, "cover.feature", """
+                Feature: Covers
+                  Scenario: Picking
+                    When I pick a green cover
+                """);
+
+        assertThat(unusedExpressions(analyze(coverSteps, features))).containsExactly("I pick a {color} cover");
+
+        write(features, "cover.feature", """
+                Feature: Covers
+                  Scenario: Picking
+                    When I pick a blue cover
+                """);
+
+        assertThat(unusedExpressions(analyze(coverSteps, features))).isEmpty();
+    }
+
+    @Test
+    void reportsADeclaredParameterTypeCucumberWouldRefuse() throws IOException {
+        write(features, "cart.feature", """
+                Feature: Cart
+                  Scenario: Empty
+                    Given an empty cart
+                """);
+
+        StepUsage usage = analyze("""
+                import io.cucumber.java.ParameterType;
+                import io.cucumber.java.en.Given;
+
+                class CartSteps {
+                    @ParameterType(value = "\\\\d+", name = "int") public String number(String value) { return value; }
+                    @Given("an empty cart") public void emptyCart() {}
+                }
+                """, features);
+
+        assertThat(usage.problems()).singleElement().satisfies(problem -> {
+            assertThat(problem.location()).isEqualTo(new SourceLocation("CartSteps.java", 5));
+            assertThat(problem.message()).startsWith("Parameter type 'int' cannot be used: ");
+        });
+        assertThat(usage.unusedSteps()).isEmpty();
+    }
+
+    @Test
     void readsAFeatureFileThatDeclaresItsOwnEncoding() throws IOException {
         Files.write(features.resolve("cafe.feature"), """
                 # encoding: iso-8859-1

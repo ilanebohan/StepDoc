@@ -6,8 +6,10 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.exodius_software.stepdoc.core.model.ExpressionSyntax;
+import com.exodius_software.stepdoc.core.model.ParameterTypeDefinition;
 import com.exodius_software.stepdoc.core.model.StepCatalog;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.model.StepKind;
@@ -74,6 +76,19 @@ final class CatalogLayout {
                     ? "{" + parameter.expressionType() + "}"
                     : parameter.javaType();
         };
+    }
+
+    /** Parameter types by name. A name declared twice keeps its first declaration. */
+    static Map<String, ParameterTypeDefinition> parameterTypesByName(StepCatalog catalog) {
+        Map<String, ParameterTypeDefinition> types = new LinkedHashMap<>();
+        catalog.parameterTypes().forEach(type -> types.putIfAbsent(type.name(), type));
+        return types;
+    }
+
+    /** The type behind a {@code {name}} placeholder, when the scanned sources declare it. */
+    static Optional<ParameterTypeDefinition> declaredTypeOf(StepParameter parameter,
+                                                            Map<String, ParameterTypeDefinition> types) {
+        return Optional.ofNullable(types.get(parameter.expressionType()));
     }
 
     /** The sentence under the title: what the document holds. */
