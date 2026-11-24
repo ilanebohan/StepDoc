@@ -48,21 +48,14 @@ What this means for you:
 You need Java 17 or newer to run Maven, and Maven 3.9 or newer. The Java version your own
 project targets does not matter.
 
-StepDoc is not on Maven Central yet. Until the first release, install it locally:
-
-```shell
-git clone https://github.com/ilanebohan/StepDoc.git
-cd StepDoc
-./mvnw install
-```
-
-Then declare the plugin in the `pom.xml` of the module that contains your step definitions:
+StepDoc is on Maven Central. Declare the plugin in the `pom.xml` of the module that contains
+your step definitions:
 
 ```xml
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </plugin>
 ```
 
@@ -73,7 +66,7 @@ sources, so it adds nothing to what you ship:
 <dependency>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-annotations</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -177,7 +170,7 @@ Set them in the plugin configuration, or on the command line with `-Dstepdoc.<se
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <configuration>
         <title>Bookshop steps</title>
         <formats>html</formats>
