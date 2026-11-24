@@ -1,5 +1,7 @@
 # Cucumber StepDoc
 
+[![CI](https://github.com/ilanebohan/StepDoc/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/ilanebohan/StepDoc/actions/workflows/ci.yml)
+
 Living documentation for your Cucumber step definitions.
 
 Large test suites end up with hundreds of steps nobody can find. StepDoc reads your
