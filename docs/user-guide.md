@@ -195,13 +195,14 @@ mvn stepdoc:check
 On the example project of this repository:
 
 ```
+[ERROR] [undefined-step] bookshop/cart.feature:22 Step "I apply the coupon "WELCOME"" has no step definition
 [ERROR] [undocumented-parameter] bookshop/steps/CartSteps.java:40 Parameter 'total' of step "the cart total is {double} euros" has no description
 [ERROR] [undocumented-step] bookshop/steps/CartSteps.java:44 Step "the cart is empty" has no description
 [ERROR] [unused-step] bookshop/steps/CartSteps.java:44 Step "the cart is empty" is not used by any feature file
 [ERROR] [unused-step] bookshop/steps/CheckoutSteps.java:26 Step "my order number is {int}" is not used by any feature file
 [ERROR] [source-problem] bookshop/steps/CheckoutSteps.java:26 Step "my order number is {int}" has 1 parameter(s) but method orderNumber takes 0
 [ERROR] BUILD FAILURE
-[ERROR] Failed to execute goal ... StepDoc: 5 violation(s), 8 step(s) checked against 5 rule(s)
+[ERROR] Failed to execute goal ... StepDoc: 6 violation(s), 8 step(s) checked against 6 rule(s)
 ```
 
 ### Rules
@@ -212,6 +213,7 @@ On the example project of this repository:
 | `undocumented-parameter` | A parameter has no description, data tables and doc strings included | Add its `@param`, or a `@StepDoc.Param` |
 | `duplicate-step` | Two methods have the same step text. Cucumber refuses to run such steps, whatever their keywords | Keep one of the two |
 | `unused-step` | No `.feature` file uses the step | Delete the step, or write the scenario it was made for |
+| `undefined-step` | A step of a `.feature` file has no step definition. Reported once per step text, where it first appears | Write the step definition, or fix the wording of the step |
 | `source-problem` | StepDoc could not read or understand something (see [Messages](#messages-and-how-to-fix-them)) | Depends on the message |
 
 ### Settings
@@ -219,13 +221,14 @@ On the example project of this repository:
 | Setting | Default | |
 |---|---|---|
 | `rules` | all | Rules to apply, comma-separated. Empty means all of them, including rules added by future versions |
-| `featureDirectories` | `src/test/resources` | Directories that hold your `.feature` files, comma-separated, searched recursively. Only used by `unused-step` |
+| `featureDirectories` | `src/test/resources` | Directories that hold your `.feature` files, comma-separated, searched recursively. Only used by `unused-step` and `undefined-step` |
 | `failOnViolation` | `true` | `false` prints the issues as warnings and lets the build pass |
 
-### How unused steps are found
+### How feature files are read
 
-StepDoc reads your feature files and matches every step of every scenario against your step
-definitions, the way Cucumber does when it runs them:
+`unused-step` and `undefined-step` are the two sides of one comparison. StepDoc reads your
+feature files and matches every step of every scenario against your step definitions, the
+way Cucumber does when it runs them:
 
 - feature files in any Gherkin language (`# language: de`);
 - steps of a `Background`, and steps of a `Scenario Outline` with the values of each example row;
@@ -233,12 +236,17 @@ definitions, the way Cucumber does when it runs them:
 
 It prefers saying nothing to being wrong:
 
-- If it finds **no feature file**, or **cannot parse one**, the rule is skipped and a warning
-  says why. Check `featureDirectories` if your features are not in `src/test/resources`.
+- If it finds **no feature file**, or **cannot parse one**, both rules are skipped and a
+  warning says why. Check `featureDirectories` if your features are not in `src/test/resources`.
 - A step that uses a **parameter type of your own** (`{color}`) is matched with the regular
   expression of its `@ParameterType`. When StepDoc cannot find that declaration (a type
   registered in code, or coming from a dependency), the step is considered used as soon as the
   rest of its text matches a scenario step.
+
+`undefined-step` can only know the step definitions StepDoc reads. A step implemented
+somewhere else (another module, a dependency, a lambda), or by a step definition reported as
+a `source-problem`, looks undefined. Fix the source problems first; if your scenarios use
+steps defined outside `sourceDirectory`, leave `undefined-step` out of `rules`.
 
 ### Run it on every build
 
@@ -265,7 +273,8 @@ On an existing project, the first `check` usually reports a lot. A way to get th
 2. Turn on the cheap rules first, for example `<rules>duplicate-step,source-problem</rules>`,
    and let them fail the build.
 3. Add `undocumented-step`, then `undocumented-parameter`, as the team documents its steps.
-4. Finish with `unused-step`, once you have agreed on what to do with unused steps.
+4. Finish with `unused-step` and `undefined-step`, once you have agreed on what to do with
+   unused steps and with scenarios written ahead of their steps.
 
 ## Settings shared by both goals
 
@@ -303,14 +312,14 @@ from `check`, the only goal that reads feature files.
 | `Parameter type '...' cannot be read from the scanned sources, it was ignored` | The regular expression of a `@ParameterType` is a constant declared outside `sourceDirectory`, or a computed value | Write it in the annotation, or declare the constant in the scanned sources |
 | `Parameter type '...' has an invalid regular expression (...), it was ignored` | The regular expression does not compile. Cucumber will fail on it too | Fix the expression |
 | `Parameter type '...' cannot be used: ...` | Cucumber refuses this declaration, for instance a name declared twice or the name of a built-in type | Rename or remove one of the declarations |
-| `Feature file could not be parsed: ...` | A `.feature` file is not valid Gherkin | Fix the file; `unused-step` is skipped until then |
+| `Feature file could not be parsed: ...` | A `.feature` file is not valid Gherkin | Fix the file; `unused-step` and `undefined-step` are skipped until then |
 | `Step "..." cannot be matched against feature files: ...` | The step text is not a valid Cucumber Expression or regular expression | Fix the expression; the message gives the column |
 
-Warnings of `check`:
+Warnings of `check`, printed for `unused-step` and for `undefined-step`:
 
 | Message | What to do |
 |---|---|
-| `Rule unused-step was skipped: no .feature file found in [...]` | Set `featureDirectories`, or remove `unused-step` from `rules` if this module has no feature file |
+| `Rule unused-step was skipped: no .feature file found in [...]` | Set `featureDirectories`, or remove both rules from `rules` if this module has no feature file |
 | `Rule unused-step was skipped: some feature files could not be parsed` | Fix the files reported just above as `source-problem` |
 
 Configuration errors stop the build at once and say which setting is wrong, for example
@@ -327,7 +336,5 @@ Configuration errors stop the build at once and say which setting is wrong, for 
   match anything.
 - **Keywords added by a Cucumber newer than StepDoc** are not classified as Given, When or
   Then when imported by name, and not detected behind a `.*` import, until StepDoc is updated.
-- **Steps that no step definition implements** are not reported: Cucumber already tells you
-  when it runs the scenario.
 - **Only Java sources** are read: step definitions written in Kotlin, Scala or Groovy are not
   supported.

@@ -17,6 +17,9 @@ public enum LintRule {
     /** A step definition that no feature file uses. Skipped when feature files cannot be read. */
     UNUSED_STEP,
 
+    /** A step of a feature file that no step definition implements. Skipped like {@link #UNUSED_STEP}. */
+    UNDEFINED_STEP,
+
     /**
      * Anything that could not be read or understood: unparsable file, parameter count
      * mismatch, expression that cannot be matched, and so on.

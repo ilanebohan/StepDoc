@@ -1,10 +1,8 @@
 package com.exodius_software.stepdoc.core.usage;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,7 +31,6 @@ final class StepMatcher {
     private static final String MATCHES_ANYTHING = ".*";
     private static final Transformer<String> AS_TEXT = text -> text;
 
-    private final Map<String, List<String>> textsByLanguage = new LinkedHashMap<>();
     private final Map<String, Expressions> expressionsByLanguage = new HashMap<>();
     private final List<ParameterTypeDefinition> parameterTypes;
 
@@ -41,27 +38,20 @@ final class StepMatcher {
      * @param parameterTypes the types the scanned project declares; any other custom type is
      *                       assumed to match anything
      */
-    StepMatcher(Collection<FeatureStep> featureSteps, List<ParameterTypeDefinition> parameterTypes) {
+    StepMatcher(List<ParameterTypeDefinition> parameterTypes) {
         this.parameterTypes = parameterTypes;
-        for (FeatureStep step : featureSteps) {
-            textsByLanguage.computeIfAbsent(step.language(), language -> new ArrayList<>()).add(step.text());
-        }
     }
 
     /**
-     * @throws CucumberExpressionException when the expression of the step cannot be compiled
-     *                                     or applied, in which case its usage is unknown
+     * @throws CucumberExpressionException when the expression of the definition cannot be
+     *                                     compiled or applied, in which case nothing is known
      */
-    boolean isUsed(StepDefinition step) {
-        for (Map.Entry<String, List<String>> texts : textsByLanguage.entrySet()) {
-            Expression expression = expressionsByLanguage
-                    .computeIfAbsent(texts.getKey(), language -> new Expressions(language, parameterTypes))
-                    .compile(step.expression());
-            if (texts.getValue().stream().anyMatch(text -> expression.match(text).isPresent())) {
-                return true;
-            }
-        }
-        return false;
+    boolean matches(StepDefinition definition, FeatureStep step) {
+        return expressionsByLanguage
+                .computeIfAbsent(step.language(), language -> new Expressions(language, parameterTypes))
+                .compile(definition.expression())
+                .match(step.text())
+                .isPresent();
     }
 
     /** The declared parameter types Cucumber itself would refuse, a name declared twice for instance. */
@@ -79,6 +69,7 @@ final class StepMatcher {
         private final ParameterTypeRegistry registry;
         private final ExpressionFactory factory;
         private final Set<String> assumedTypes = new HashSet<>();
+        private final Map<String, Expression> compiled = new HashMap<>();
         private final List<Problem> problems = new ArrayList<>();
 
         Expressions(String language, List<ParameterTypeDefinition> declaredTypes) {
@@ -96,7 +87,18 @@ final class StepMatcher {
             }
         }
 
+        /** Compiled once: the same definition is matched against every step of the feature files. */
         Expression compile(String expression) {
+            Expression known = compiled.get(expression);
+            if (known != null) {
+                return known;
+            }
+            Expression created = create(expression);
+            compiled.put(expression, created);
+            return created;
+        }
+
+        private Expression create(String expression) {
             while (true) {
                 try {
                     return factory.createExpression(expression);
