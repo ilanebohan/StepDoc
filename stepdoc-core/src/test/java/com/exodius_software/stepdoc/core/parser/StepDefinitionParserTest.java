@@ -322,7 +322,7 @@ class StepDefinitionParserTest {
 
             assertThat(catalog.steps()).isEmpty();
             assertThat(catalog.problems()).singleElement()
-                    .satisfies(problem -> assertThat(problem.message()).contains("add", "not a string literal"));
+                    .satisfies(problem -> assertThat(problem.message()).contains("add", "cannot be read from the scanned sources"));
         }
 
         @Test
@@ -333,6 +333,118 @@ class StepDefinitionParserTest {
             assertThat(StepExpressions.syntaxOf("/")).isEqualTo(ExpressionSyntax.CUCUMBER_EXPRESSION);
             assertThat(StepExpressions.syntaxOf("a cart of {int}/{int} books"))
                     .isEqualTo(ExpressionSyntax.CUCUMBER_EXPRESSION);
+        }
+    }
+
+    @Nested
+    class Constants {
+
+        @TempDir
+        Path root;
+
+        @Test
+        void readsAConstantOfTheSameClassEvenBuiltFromAnotherOne() {
+            StepDefinition step = onlyStep("""
+                    import io.cucumber.java.en.When;
+
+                    class CartSteps {
+                        private static final String BOOK = "a book";
+                        private static final String ADD = "I add " + BOOK;
+
+                        @When(ADD) void add() {}
+                    }
+                    """);
+
+            assertThat(step.expression()).isEqualTo("I add a book");
+        }
+
+        @Test
+        void readsTheConstantsOfAnotherFileThroughThePackageAnImportOrAStaticImport() throws IOException {
+            write("shop/Phrases.java", """
+                    package shop;
+                    public interface Phrases {
+                        String EMPTY = "an empty cart";
+                        String ADD = "I add a book";
+                        String REMOVE = "I remove a book";
+                    }
+                    """);
+            write("shop/CartSteps.java", """
+                    package shop;
+                    import io.cucumber.java.en.Given;
+                    class CartSteps { @Given(Phrases.EMPTY) void empty() {} }
+                    """);
+            write("shop/steps/AddSteps.java", """
+                    package shop.steps;
+                    import io.cucumber.java.en.When;
+                    import shop.Phrases;
+                    class AddSteps { @When(Phrases.ADD) void add() {} }
+                    """);
+            write("shop/steps/RemoveSteps.java", """
+                    package shop.steps;
+                    import static shop.Phrases.REMOVE;
+                    import io.cucumber.java.en.When;
+                    class RemoveSteps { @When(REMOVE) void remove() {} }
+                    """);
+
+            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.UTF_8);
+
+            assertThat(catalog.steps()).extracting(StepDefinition::expression)
+                    .containsExactly("an empty cart", "I add a book", "I remove a book");
+            assertThat(catalog.problems()).isEmpty();
+        }
+
+        @Test
+        void doesNotTakeAFieldThatCanChangeForAConstant() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.en.When;
+
+                    class CartSteps {
+                        static String add = "I add a book";
+
+                        @When(add) void add() {}
+                    }
+                    """);
+
+            assertThat(catalog.steps()).isEmpty();
+        }
+
+        @Test
+        void givesUpOnConstantsDefinedInTermsOfEachOther() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.en.When;
+
+                    class CartSteps {
+                        static final String ADD = REMOVE;
+                        static final String REMOVE = ADD;
+
+                        @When(ADD) void add() {}
+                    }
+                    """);
+
+            assertThat(catalog.steps()).isEmpty();
+            assertThat(catalog.problems()).hasSize(1);
+        }
+
+        @Test
+        void readsStepDocTextsFromConstants() {
+            StepDefinition step = onlyStep("""
+                    import io.cucumber.java.en.When;
+
+                    class CartSteps {
+                        static final String ADDS_A_BOOK = "Adds a book to the cart";
+
+                        @StepDoc(ADDS_A_BOOK)
+                        @When("I add a book") void add() {}
+                    }
+                    """);
+
+            assertThat(step.description()).isEqualTo("Adds a book to the cart");
+        }
+
+        private void write(String relativePath, String content) throws IOException {
+            Path file = root.resolve(relativePath);
+            Files.createDirectories(file.getParent());
+            Files.writeString(file, content);
         }
     }
 

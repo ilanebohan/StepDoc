@@ -11,6 +11,16 @@ break one of them; such a change is listed under "Changed" or "Removed". The cla
 
 ## [Unreleased]
 
+### Added
+
+- A step text or a `@StepDoc` text written as a constant is read, when the constant is declared
+  in the scanned sources, in the same file or in another one.
+
+### Changed
+
+- The problem reported for a step text that cannot be read now says "cannot be read from the
+  scanned sources" instead of "is not a string literal".
+
 ## [0.1.0] - 2026-11-24
 
 ### Added

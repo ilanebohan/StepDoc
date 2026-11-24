@@ -32,12 +32,14 @@ final class SourceFileScan {
     private final String file;
     private final CompilationUnit unit;
     private final CucumberStepAnnotations annotationResolver;
+    private final StringConstants constants;
     private final List<StepDefinition> steps = new ArrayList<>();
     private final List<Problem> problems = new ArrayList<>();
 
-    SourceFileScan(String file, CompilationUnit unit) {
+    SourceFileScan(String file, CompilationUnit unit, StringConstants constants) {
         this.file = file;
         this.unit = unit;
+        this.constants = constants;
         this.annotationResolver = CucumberStepAnnotations.of(unit);
     }
 
@@ -55,7 +57,7 @@ final class SourceFileScan {
         if (stepAnnotations.isEmpty()) {
             return;
         }
-        MethodDocumentation documentation = MethodDocumentation.of(method);
+        MethodDocumentation documentation = MethodDocumentation.of(method, constants);
         checkStepDocParameterCount(method, documentation);
         stepAnnotations.forEach(annotation -> addStep(method, annotation, documentation));
     }
@@ -72,10 +74,10 @@ final class SourceFileScan {
     private void addStep(MethodDeclaration method, StepAnnotation annotation, MethodDocumentation documentation) {
         SourceLocation location = locationOf(annotation.expression());
         Optional<String> expression = AnnotationValues.member(annotation.expression(), "value")
-                .flatMap(AnnotationValues::constantString);
+                .flatMap(constants::valueOf);
         if (expression.isEmpty()) {
             problems.add(new Problem(location, "Step expression of method " + method.getNameAsString()
-                    + " is not a string literal, the step was skipped"));
+                    + " cannot be read from the scanned sources, the step was skipped"));
             return;
         }
         ExpressionSyntax syntax = StepExpressions.syntaxOf(expression.get());
