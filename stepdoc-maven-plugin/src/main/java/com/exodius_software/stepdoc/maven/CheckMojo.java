@@ -1,5 +1,6 @@
 package com.exodius_software.stepdoc.maven;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -12,11 +13,9 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
-import com.exodius_software.stepdoc.core.lint.CatalogLinter;
+import com.exodius_software.stepdoc.core.DocumentationChecker;
 import com.exodius_software.stepdoc.core.lint.LintRule;
 import com.exodius_software.stepdoc.core.lint.Violation;
-import com.exodius_software.stepdoc.core.model.StepCatalog;
-import com.exodius_software.stepdoc.core.parser.StepDefinitionParser;
 
 /** Fails the build when step definitions break the configured documentation rules. */
 @Mojo(name = "check", defaultPhase = LifecyclePhase.VERIFY, threadSafe = true)
@@ -24,11 +23,19 @@ public class CheckMojo extends AbstractStepDocMojo {
 
     /**
      * Rules to apply, by id: {@code undocumented-step}, {@code undocumented-parameter},
-     * {@code duplicate-step}, {@code source-problem}. Empty means all of them,
-     * so new rules apply without touching the configuration.
+     * {@code duplicate-step}, {@code unused-step}, {@code source-problem}. Empty means all of
+     * them, so new rules apply without touching the configuration.
      */
     @Parameter(property = "stepdoc.rules")
     private List<String> rules;
+
+    /**
+     * Directories searched, recursively, for the {@code .feature} files that tell which steps
+     * are used. Only read by the {@code unused-step} rule, which is skipped with a warning
+     * when they contain no feature file.
+     */
+    @Parameter(property = "stepdoc.featureDirectories", defaultValue = "${project.basedir}/src/test/resources")
+    private List<File> featureDirectories;
 
     /** When {@code false}, violations are only logged as warnings. */
     @Parameter(property = "stepdoc.failOnViolation", defaultValue = "true")
@@ -37,10 +44,13 @@ public class CheckMojo extends AbstractStepDocMojo {
     @Override
     protected void run(Path sourceRoot) throws IOException, MojoFailureException {
         Set<LintRule> enabledRules = enabledRules();
-        StepCatalog catalog = new StepDefinitionParser().parseDirectory(sourceRoot);
-        List<Violation> violations = CatalogLinter.lint(catalog, enabledRules);
+        List<Path> featureRoots = featureDirectories.stream().map(File::toPath).toList();
+        DocumentationChecker.Result result = new DocumentationChecker().check(sourceRoot, featureRoots, enabledRules);
+        result.warnings().forEach(warning -> getLog().warn("StepDoc: " + warning));
 
-        String checked = catalog.steps().size() + " step(s) checked against " + enabledRules.size() + " rule(s)";
+        List<Violation> violations = result.violations();
+        String checked = result.catalog().steps().size() + " step(s) checked against "
+                + enabledRules.size() + " rule(s)";
         if (violations.isEmpty()) {
             getLog().info("StepDoc: " + checked + ", no violation");
             return;

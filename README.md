@@ -14,7 +14,7 @@ that every step is documented.
    recognised (`io.cucumber.java.en`, `io.cucumber.java.de`, ...).
 2. Each step is described by its Javadoc. `@StepDoc` is optional, for example values.
 3. `stepdoc:generate` writes the catalog in Markdown and HTML.
-   `stepdoc:check` fails the build when a step is not documented.
+   `stepdoc:check` fails the build when a step is not documented, or not used by any feature file.
 
 ```java
 /**
@@ -122,6 +122,7 @@ with `-Dstepdoc.<setting>=<value>`, e.g. `-Dstepdoc.formats=html`.
 | Setting | Default | |
 |---|---|---|
 | `rules` | all | Rules to apply, comma-separated (see below) |
+| `featureDirectories` | `src/test/resources` | Where the `.feature` files are, for the `unused-step` rule. Several directories can be given, comma-separated; they are searched recursively |
 | `failOnViolation` | `true` | `false` only prints warnings |
 
 | Rule | Fails when |
@@ -129,7 +130,13 @@ with `-Dstepdoc.<setting>=<value>`, e.g. `-Dstepdoc.formats=html`.
 | `undocumented-step` | A step has no description |
 | `undocumented-parameter` | A parameter has no description |
 | `duplicate-step` | Two steps have the same text, which Cucumber refuses to run |
+| `unused-step` | No `.feature` file uses the step |
 | `source-problem` | A file cannot be read, or a step and its method disagree on parameters |
+
+`unused-step` matches the steps of your feature files against your step definitions the way
+Cucumber does: any Gherkin language, scenario outlines with their example values, Cucumber
+Expressions and regular expressions. If it finds no feature file, or cannot parse one, it
+prints a warning and reports nothing rather than calling used steps unused.
 
 ## Try it
 
@@ -139,7 +146,7 @@ with `-Dstepdoc.<setting>=<value>`, e.g. `-Dstepdoc.formats=html`.
 ../../mvnw stepdoc:generate stepdoc:check
 ```
 
-`check` fails on purpose: the example contains undocumented and broken steps.
+`check` fails on purpose: the example contains undocumented, unused and broken steps.
 
 ## Contributing
 

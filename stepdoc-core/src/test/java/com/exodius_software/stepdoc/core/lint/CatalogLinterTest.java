@@ -17,6 +17,7 @@ import com.exodius_software.stepdoc.core.model.StepCatalog;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.model.StepKind;
 import com.exodius_software.stepdoc.core.model.StepParameter;
+import com.exodius_software.stepdoc.core.usage.StepUsage;
 
 class CatalogLinterTest {
 
@@ -28,14 +29,14 @@ class CatalogLinterTest {
         StepCatalog catalog = catalog(step("I add {int} books", "Adds books", 3,
                 parameter("quantity", "number of copies")));
 
-        assertThat(CatalogLinter.lint(catalog, ALL_RULES)).isEmpty();
+        assertThat(CatalogLinter.lint(catalog, StepUsage.NOT_REQUESTED, ALL_RULES)).isEmpty();
     }
 
     @Test
     void reportsAStepWithoutDescription() {
         StepCatalog catalog = catalog(step("I add a book", " ", 7));
 
-        assertThat(CatalogLinter.lint(catalog, ALL_RULES)).extracting(Violation::toString)
+        assertThat(CatalogLinter.lint(catalog, StepUsage.NOT_REQUESTED, ALL_RULES)).extracting(Violation::toString)
                 .containsExactly("[undocumented-step] steps/CartSteps.java:7 Step \"I add a book\" has no description");
     }
 
@@ -46,7 +47,7 @@ class CatalogLinterTest {
                 parameter("title", ""),
                 parameter("", "")));
 
-        assertThat(CatalogLinter.lint(catalog, ALL_RULES)).extracting(Violation::message)
+        assertThat(CatalogLinter.lint(catalog, StepUsage.NOT_REQUESTED, ALL_RULES)).extracting(Violation::message)
                 .containsExactly("Parameter 'title' of step \"I add {int} copies of {string} for {}\" has no description");
     }
 
@@ -58,7 +59,7 @@ class CatalogLinterTest {
                 step(StepKind.THEN, "a book in the cart", 9),
                 step(StepKind.WHEN, "a book in the cart", 12));
 
-        assertThat(CatalogLinter.lint(catalog, Set.of(LintRule.DUPLICATE_STEP)))
+        assertThat(CatalogLinter.lint(catalog, StepUsage.NOT_REQUESTED, Set.of(LintRule.DUPLICATE_STEP)))
                 .extracting(violation -> violation.location().line(), Violation::message)
                 .containsExactly(
                         tuple(9, "Step \"a book in the cart\" is already defined at steps/CartSteps.java:2"),
@@ -70,18 +71,39 @@ class CatalogLinterTest {
         StepCatalog catalog = new StepCatalog(List.of(),
                 List.of(new Problem(new SourceLocation("steps/Broken.java", 1), "File could not be parsed")));
 
-        assertThat(CatalogLinter.lint(catalog, ALL_RULES)).extracting(Violation::toString)
+        assertThat(CatalogLinter.lint(catalog, StepUsage.NOT_REQUESTED, ALL_RULES)).extracting(Violation::toString)
                 .containsExactly("[source-problem] steps/Broken.java:1 File could not be parsed");
+    }
+
+    @Test
+    void reportsTheStepsThatFeatureFilesDoNotUse() {
+        StepDefinition used = step("an empty cart", "Starts empty", 3);
+        StepDefinition unused = step("the cart is empty", "Checks the cart", 8);
+        StepUsage usage = new StepUsage(List.of(unused), List.of(), "");
+
+        assertThat(CatalogLinter.lint(catalog(used, unused), usage, ALL_RULES)).extracting(Violation::toString)
+                .containsExactly("[unused-step] steps/CartSteps.java:8 "
+                        + "Step \"the cart is empty\" is not used by any feature file");
+    }
+
+    @Test
+    void turnsProblemsFoundInFeatureFilesIntoViolations() {
+        StepUsage usage = new StepUsage(List.of(),
+                List.of(new Problem(new SourceLocation("cart.feature", 4), "Feature file could not be parsed")),
+                "some feature files could not be parsed");
+
+        assertThat(CatalogLinter.lint(catalog(), usage, ALL_RULES)).extracting(Violation::toString)
+                .containsExactly("[source-problem] cart.feature:4 Feature file could not be parsed");
     }
 
     @Test
     void appliesOnlyTheEnabledRules() {
         StepCatalog catalog = catalog(step("I add {int} books", "", 3, parameter("quantity", "")));
 
-        assertThat(CatalogLinter.lint(catalog, Set.of(LintRule.UNDOCUMENTED_PARAMETER)))
+        assertThat(CatalogLinter.lint(catalog, StepUsage.NOT_REQUESTED, Set.of(LintRule.UNDOCUMENTED_PARAMETER)))
                 .extracting(Violation::rule)
                 .containsExactly(LintRule.UNDOCUMENTED_PARAMETER);
-        assertThat(CatalogLinter.lint(catalog, Set.of())).isEmpty();
+        assertThat(CatalogLinter.lint(catalog, StepUsage.NOT_REQUESTED, Set.of())).isEmpty();
     }
 
     @Test
@@ -91,7 +113,7 @@ class CatalogLinterTest {
                 List.of(new Problem(new SourceLocation("steps/A.java", 50), "File could not be parsed"),
                         new Problem(new SourceLocation(FILE, 12), "Parameter count mismatch")));
 
-        assertThat(CatalogLinter.lint(catalog, ALL_RULES))
+        assertThat(CatalogLinter.lint(catalog, StepUsage.NOT_REQUESTED, ALL_RULES))
                 .extracting(violation -> violation.location().toString())
                 .containsExactly("steps/A.java:50", FILE + ":4", FILE + ":12", FILE + ":30");
     }
@@ -100,10 +122,10 @@ class CatalogLinterTest {
     void readsRuleIdsFromConfiguration() {
         assertThat(LintRule.fromId(" Undocumented-Step ")).isEqualTo(LintRule.UNDOCUMENTED_STEP);
         assertThat(LintRule.DUPLICATE_STEP.id()).isEqualTo("duplicate-step");
-        assertThatThrownBy(() -> LintRule.fromId("unused-step"))
+        assertThatThrownBy(() -> LintRule.fromId("missing-example"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Unknown rule 'unused-step', expected one of: "
-                        + "undocumented-step, undocumented-parameter, duplicate-step, source-problem");
+                .hasMessage("Unknown rule 'missing-example', expected one of: "
+                        + "undocumented-step, undocumented-parameter, duplicate-step, unused-step, source-problem");
     }
 
     private static StepCatalog catalog(StepDefinition... steps) {
