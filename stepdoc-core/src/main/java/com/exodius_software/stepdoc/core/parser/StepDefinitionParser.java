@@ -2,6 +2,7 @@ package com.exodius_software.stepdoc.core.parser;
 
 import java.io.IOException;
 import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -31,13 +32,13 @@ public final class StepDefinitionParser {
 
     /**
      * Scans every {@code .java} file under {@code sourceRoot}, recursively.
-     * Files are read as UTF-8 and visited in relative path order, so the result
-     * does not depend on the file system.
+     * Files are visited in relative path order, so the result does not depend on the
+     * file system. A file that is not valid in {@code encoding} is reported and skipped.
      */
-    public StepCatalog parseDirectory(Path sourceRoot) throws IOException {
+    public StepCatalog parseDirectory(Path sourceRoot, Charset encoding) throws IOException {
         List<StepCatalog> catalogs = new ArrayList<>();
         for (FileTree.Entry file : FileTree.filesWithExtension(sourceRoot, JAVA_EXTENSION)) {
-            catalogs.add(parseFile(file));
+            catalogs.add(parseFile(file, encoding));
         }
         return StepCatalog.concat(catalogs);
     }
@@ -55,11 +56,11 @@ public final class StepDefinitionParser {
         return new SourceFileScan(relativePath, result.getResult().get()).scan();
     }
 
-    private StepCatalog parseFile(FileTree.Entry file) throws IOException {
+    private StepCatalog parseFile(FileTree.Entry file, Charset encoding) throws IOException {
         try {
-            return parseSource(file.relativePath(), Files.readString(file.path()));
+            return parseSource(file.relativePath(), Files.readString(file.path(), encoding));
         } catch (CharacterCodingException e) {
-            return onlyProblem(file.relativePath(), 1, "File is not valid UTF-8, it was skipped");
+            return onlyProblem(file.relativePath(), 1, "File is not valid " + encoding.name() + ", it was skipped");
         }
     }
 

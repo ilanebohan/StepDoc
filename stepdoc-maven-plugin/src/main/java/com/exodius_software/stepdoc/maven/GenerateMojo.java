@@ -2,8 +2,7 @@ package com.exodius_software.stepdoc.maven;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -14,10 +13,12 @@ import org.apache.maven.plugins.annotations.Parameter;
 
 import com.exodius_software.stepdoc.core.DocumentationGenerator;
 import com.exodius_software.stepdoc.core.DocumentationGenerator.OutputSettings;
+import com.exodius_software.stepdoc.core.SourceSettings;
 import com.exodius_software.stepdoc.core.model.Problem;
 import com.exodius_software.stepdoc.core.render.GroupBy;
 import com.exodius_software.stepdoc.core.render.OutputFormat;
 import com.exodius_software.stepdoc.core.render.RenderOptions;
+import com.exodius_software.stepdoc.core.util.TextFiles;
 
 /**
  * Generates the step definition documentation of the current project.
@@ -60,11 +61,11 @@ public class GenerateMojo extends AbstractStepDocMojo {
     private File htmlStylesheet;
 
     @Override
-    protected void run(Path sourceRoot) throws IOException {
+    protected void run(SourceSettings sources) throws IOException {
         DocumentationGenerator.Result result = new DocumentationGenerator().generate(
-                sourceRoot,
+                sources,
                 new OutputSettings(outputDirectory.toPath(), fileName, outputFormats()),
-                renderOptions());
+                renderOptions(sources.encoding()));
         for (Problem problem : result.catalog().problems()) {
             getLog().warn("StepDoc: " + problem.location() + " " + problem.message());
         }
@@ -79,8 +80,10 @@ public class GenerateMojo extends AbstractStepDocMojo {
                 .collect(Collectors.toSet());
     }
 
-    private RenderOptions renderOptions() throws IOException {
-        String extraCss = htmlStylesheet == null ? "" : Files.readString(htmlStylesheet.toPath());
+    private RenderOptions renderOptions(Charset encoding) throws IOException {
+        String extraCss = htmlStylesheet == null
+                ? ""
+                : TextFiles.read(htmlStylesheet.toPath(), encoding, "htmlStylesheet");
         return new RenderOptions(title, GroupBy.fromName(groupBy), showSourceLocation, showProblems, extraCss);
     }
 }

@@ -14,6 +14,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 
 import com.exodius_software.stepdoc.core.DocumentationChecker;
+import com.exodius_software.stepdoc.core.SourceSettings;
 import com.exodius_software.stepdoc.core.lint.LintRule;
 import com.exodius_software.stepdoc.core.lint.Violation;
 
@@ -42,10 +43,10 @@ public class CheckMojo extends AbstractStepDocMojo {
     private boolean failOnViolation;
 
     @Override
-    protected void run(Path sourceRoot) throws IOException, MojoFailureException {
+    protected void run(SourceSettings sources) throws IOException, MojoFailureException {
         Set<LintRule> enabledRules = enabledRules();
         List<Path> featureRoots = featureDirectories.stream().map(File::toPath).toList();
-        DocumentationChecker.Result result = new DocumentationChecker().check(sourceRoot, featureRoots, enabledRules);
+        DocumentationChecker.Result result = new DocumentationChecker().check(sources, featureRoots, enabledRules);
         result.warnings().forEach(warning -> getLog().warn("StepDoc: " + warning));
 
         List<Violation> violations = result.violations();

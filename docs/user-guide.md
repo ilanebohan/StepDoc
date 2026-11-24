@@ -276,9 +276,13 @@ On an existing project, the first `check` usually reports a lot. A way to get th
 | Setting | Default | |
 |---|---|---|
 | `sourceDirectory` | `src/test/java` | Where your step definitions are, searched recursively |
+| `encoding` | `project.build.sourceEncoding` | Encoding of your step definition sources and of `htmlStylesheet`. UTF-8 if the project sets none, on every machine |
 | `skip` | `false` | Skips StepDoc, for example with `-Dstepdoc.skip` |
 
 `mvn stepdoc:help -Ddetail` prints every goal and setting on the command line.
+
+Feature files do not use `encoding`. They follow the rule of Gherkin: UTF-8, unless the file
+starts with a comment such as `# encoding: iso-8859-1`.
 
 In a multi-module project, declare the plugin in each module that holds step definitions:
 StepDoc documents the sources of the module it runs in, not the steps that come from a
@@ -296,7 +300,7 @@ from `check`, the only goal that reads feature files.
 | Message | Meaning | What to do |
 |---|---|---|
 | `File could not be parsed, it was skipped: ...` | The Java file has a syntax error | Fix the file; its steps are missing from the catalog until then |
-| `File is not valid UTF-8, it was skipped` | StepDoc reads sources as UTF-8 | Convert the file to UTF-8 |
+| `File is not valid UTF-8, it was skipped` | The file is not written in the encoding StepDoc reads, named in the message | Convert the file, or set `encoding` (or `project.build.sourceEncoding`) to the encoding of your sources |
 | `Step expression of method ... is not a string literal, the step was skipped` | The step text is a constant (`@When(Steps.ADD)`), which StepDoc cannot read without compiling | Write the text in the annotation |
 | `Step "..." has 1 parameter(s) but method ... takes 0` | The step text and the method do not have the same number of parameters. Cucumber will fail on this step | Fix the expression or the method |
 | `@StepDoc documents 2 parameter(s) but method ... takes 1` | `@StepDoc` describes more parameters than the method has | Remove the extra `@StepDoc.Param` |
@@ -310,8 +314,9 @@ Warnings of `check`:
 | `Rule unused-step was skipped: no .feature file found in [...]` | Set `featureDirectories`, or remove `unused-step` from `rules` if this module has no feature file |
 | `Rule unused-step was skipped: some feature files could not be parsed` | Fix the files reported just above as `source-problem` |
 
-Configuration errors stop the build at once and list the accepted values, for example
-`Unknown format 'pdf', expected one of: markdown, html`.
+Configuration errors stop the build at once and say which setting is wrong, for example
+`Unknown format 'pdf', expected one of: markdown, html` or
+`htmlStylesheet points to .../style.css, which does not exist`.
 
 ## Limits
 
