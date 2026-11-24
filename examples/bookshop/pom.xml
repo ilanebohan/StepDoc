@@ -8,14 +8,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>fr.bohanilane.stepdoc.examples</groupId>
+    <groupId>com.exodius-software.stepdoc.examples</groupId>
     <artifactId>bookshop</artifactId>
     <version>1.0</version>
 
     <build>
         <plugins>
             <plugin>
-                <groupId>fr.bohanilane.stepdoc</groupId>
+                <groupId>com.exodius-software.stepdoc</groupId>
                 <artifactId>stepdoc-maven-plugin</artifactId>
                 <version>0.1.0-SNAPSHOT</version>
                 <configuration>

@@ -29,7 +29,7 @@ description, and what each parameter expects, with examples.
 
 ```xml
 <plugin>
-    <groupId>fr.bohanilane.stepdoc</groupId>
+    <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <configuration>

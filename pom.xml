@@ -4,14 +4,14 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>fr.bohanilane.stepdoc</groupId>
+    <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <name>Cucumber StepDoc</name>
     <description>Living documentation for Cucumber step definitions: descriptions, parameters, Markdown/HTML/Confluence output and a doc linter.</description>
-    <url>https://bohanilane.fr</url>
+    <url>https://exodius-software.com</url>
 
     <licenses>
         <license>
@@ -23,7 +23,7 @@
     <developers>
         <developer>
             <name>Ilane Bohan</name>
-            <url>https://bohanilane.fr</url>
+            <url>https://exodius-software.com</url>
         </developer>
     </developers>
 
@@ -52,12 +52,12 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>fr.bohanilane.stepdoc</groupId>
+                <groupId>com.exodius-software.stepdoc</groupId>
                 <artifactId>stepdoc-annotations</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>fr.bohanilane.stepdoc</groupId>
+                <groupId>com.exodius-software.stepdoc</groupId>
                 <artifactId>stepdoc-core</artifactId>
                 <version>${project.version}</version>
             </dependency>

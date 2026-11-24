@@ -1,6 +1,6 @@
 package bookshop.steps;
 
-import fr.bohanilane.stepdoc.annotations.StepDoc;
+import com.exodius_software.stepdoc.annotations.StepDoc;
 import io.cucumber.datatable.DataTable;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;

@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>fr.bohanilane.stepdoc</groupId>
+        <groupId>com.exodius-software.stepdoc</groupId>
         <artifactId>stepdoc-parent</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
@@ -17,7 +17,7 @@
 
     <dependencies>
         <dependency>
-            <groupId>fr.bohanilane.stepdoc</groupId>
+            <groupId>com.exodius-software.stepdoc</groupId>
             <artifactId>stepdoc-core</artifactId>
         </dependency>
 
