@@ -60,9 +60,21 @@ Rules:
 - Title in the commit format. Fill in the template of `.github/pull_request_template.md`:
   what changes and why, the linked issue (`Closes #42`), and the checklist, ticked honestly.
 - **Fill in the "AI assistance" section truthfully.** If you wrote or drafted any part of the
-  pull request, it is AI-assisted: name yourself (tool and model if you know them) and say what
-  you did (code, tests, documentation, review). Never write "None" for your own work, and never
-  drop the section. The project requires this declaration from every contributor.
+  pull request, it is AI-assisted. Never write "None" for your own work, and never drop the
+  section: the project requires this declaration from every contributor. Write, in this order:
+  1. who you are (tool, and model if you know it) and what you did: code, tests,
+     documentation, review;
+  2. a summary of the change in broad strokes, three to six lines: the goal first, then the
+     main changes, then anything you are unsure about. Describe what the diff really contains,
+     not what was planned: the reviewer uses this summary to check that you and the diff agree.
+
+  ```
+  <tool and model> (analysis, code, tests, documentation), reviewed by the author.
+  Goal: report step definitions that no feature file uses.
+  Changes: new unused-step rule; feature files read with the Gherkin library and matched
+  with Cucumber's expression library; new featureDirectories setting.
+  Unsure: custom parameter types are assumed to match anything, which can hide an unused step.
+  ```
 - Add what a reviewer cannot see in the diff: how you verified the change, the assumptions you
   made, what you left out.
 - One topic per pull request. Small ones get reviewed; large ones get postponed.
