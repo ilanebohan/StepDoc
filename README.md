@@ -5,8 +5,6 @@
 StepDoc turns your Cucumber step definitions into a searchable catalog, and checks
 that every step is documented.
 
-> Early development: not on Maven Central yet.
-
 New here? The [user guide](docs/user-guide.md) covers everything, step by step.
 
 ## How it works
@@ -45,21 +43,13 @@ The HTML page has the same content, a search box and a dark mode.
 
 Requires Java 17+ and Maven 3.9+.
 
-Until the first release, install StepDoc locally:
-
-```shell
-git clone https://github.com/ilanebohan/StepDoc.git
-cd StepDoc
-./mvnw install
-```
-
-Then add the plugin to the `pom.xml` of your test project:
+StepDoc is on Maven Central. Add the plugin to the `pom.xml` of your test project:
 
 ```xml
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </plugin>
 ```
 
@@ -69,7 +59,7 @@ To use `@StepDoc`, add the annotations too. It only exists in your sources, so t
 <dependency>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-annotations</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -145,7 +135,8 @@ prints a warning and reports nothing rather than calling used steps unused.
 
 ## Try it
 
-`examples/bookshop` is a small fake test project. After `./mvnw install`, run from that folder:
+`examples/bookshop` is a small fake test project in this repository. After `./mvnw install`
+at the root, run from that folder:
 
 ```shell
 ../../mvnw stepdoc:generate stepdoc:check

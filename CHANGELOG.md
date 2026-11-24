@@ -11,6 +11,8 @@ break one of them; such a change is listed under "Changed" or "Removed". The cla
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-24
+
 ### Added
 
 - `stepdoc:generate` writes a catalog of the Cucumber step definitions of a project, in
