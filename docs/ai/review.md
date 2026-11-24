@@ -34,7 +34,7 @@ agent, or by you. The standard is the same in all three cases.
 - Logic sits in the wrong place: in a mojo instead of core, in one renderer instead of
   `CatalogLayout`, duplicated between formats.
 - Tests are coupled to the implementation, or assert less than the behavior.
-- A user-visible change is missing from `README.md`; a changed design decision or recipe is
+- A user-visible change is missing from `docs/user-guide.md` or `README.md`; a changed design decision or recipe is
   missing from these guides.
 - A name, a message or a comment misleads the reader.
 

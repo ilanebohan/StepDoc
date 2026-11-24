@@ -106,7 +106,7 @@ Each recipe lists every place a change must touch. If you find one that is missi
 2. The build now fails in `CatalogLinter.check`: implement the rule there as a small method.
    A rule that needs the feature files takes its facts from `StepUsage`, never from the files.
 3. Test it in `CatalogLinterTest`, and update the test that lists the valid rule ids.
-4. Document it: rule table in `README.md`, Javadoc of `rules` in `CheckMojo`.
+4. Document it: rule tables in `docs/user-guide.md` and `README.md`, Javadoc of `rules` in `CheckMojo`.
 
 **Add an output format**
 
@@ -114,7 +114,7 @@ Each recipe lists every place a change must touch. If you find one that is missi
    `CatalogLayout`; escape every value that comes from the catalog.
 2. Register it in `OutputFormat` with its file extension.
 3. Test it like `MarkdownRendererTest`, including escaping, and update `OutputFormatTest`.
-4. Document it: `formats` in `README.md` and in the Javadoc of `GenerateMojo`.
+4. Document it: `formats` in `docs/user-guide.md`, in `README.md` and in the Javadoc of `GenerateMojo`.
 
 **Add a plugin setting**
 
@@ -122,7 +122,7 @@ Each recipe lists every place a change must touch. If you find one that is missi
    or to `AbstractStepDocMojo` if every goal needs it. Its Javadoc is the user documentation.
 2. Carry the value to core through an existing options type (`RenderOptions`, `OutputSettings`)
    rather than a new method parameter. Validate in core, with an `IllegalArgumentException`.
-3. Test the behavior in core, and add the setting to the tables in `README.md`.
+3. Test the behavior in core, and add the setting to the tables in `docs/user-guide.md` and `README.md`.
 
 **Add information to the model**
 

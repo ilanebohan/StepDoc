@@ -7,6 +7,8 @@ that every step is documented.
 
 > Early development: not on Maven Central yet.
 
+New here? The [user guide](docs/user-guide.md) covers everything, step by step.
+
 ## How it works
 
 1. StepDoc reads your step definition sources (`src/test/java` by default).
@@ -76,7 +78,7 @@ To use `@StepDoc`, add the annotations too. It only exists in your sources, so t
 
 ```shell
 mvn stepdoc:generate   # writes target/stepdoc/steps.md and steps.html
-mvn stepdoc:check      # fails the build if a step is not documented
+mvn stepdoc:check      # fails the build if a step is undocumented, duplicated or unused
 ```
 
 To run both on every build, add an execution to the plugin:
@@ -96,6 +98,8 @@ To run both on every build, add an execution to the plugin:
 
 Everything has a default. Set what you need in `<configuration>`, or on the command line
 with `-Dstepdoc.<setting>=<value>`, e.g. `-Dstepdoc.formats=html`.
+
+The [user guide](docs/user-guide.md) explains each setting, each rule and each message in detail.
 
 **Both goals**
 

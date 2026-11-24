@@ -19,7 +19,7 @@ Apply [`docs/ai/review.md`](../docs/ai/review.md). Treat each of these as blocki
 - A check is weakened: `@SuppressWarnings`, a lowered coverage floor, a disabled or deleted
   test, a workflow edited to pass.
 - A behavior change comes without a test that would fail without it.
-- A user-visible change is missing from `README.md`.
+- A user-visible change is missing from `docs/user-guide.md` or `README.md`.
 
 Report findings most severe first, with the file, the line, the reason and a suggestion.
 Do not comment on style that the build does not enforce.
