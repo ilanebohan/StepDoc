@@ -6,12 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import com.exodius_software.stepdoc.core.model.StepCatalog;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.model.StepParameter;
+import com.exodius_software.stepdoc.core.usage.StepUsage;
 
-/** Checks a catalog against a set of rules. Stateless. */
+/** Checks a catalog, and how feature files use it, against a set of rules. Stateless. */
 public final class CatalogLinter {
 
     private static final Comparator<Violation> BY_LOCATION = Comparator
@@ -21,24 +23,30 @@ public final class CatalogLinter {
     private CatalogLinter() {
     }
 
-    /** Violations of the enabled rules, sorted by file then line so they read like a compiler report. */
-    public static List<Violation> lint(StepCatalog catalog, Set<LintRule> enabledRules) {
+    /**
+     * Violations of the enabled rules, sorted by file then line so they read like a compiler report.
+     *
+     * @param usage what feature files say about the catalog; {@link StepUsage#NOT_REQUESTED} when
+     *              {@link LintRule#UNUSED_STEP} is not enabled
+     */
+    public static List<Violation> lint(StepCatalog catalog, StepUsage usage, Set<LintRule> enabledRules) {
         List<Violation> violations = new ArrayList<>();
         for (LintRule rule : LintRule.values()) {
             if (enabledRules.contains(rule)) {
-                violations.addAll(check(rule, catalog));
+                violations.addAll(check(rule, catalog, usage));
             }
         }
         violations.sort(BY_LOCATION);
         return violations;
     }
 
-    private static List<Violation> check(LintRule rule, StepCatalog catalog) {
+    private static List<Violation> check(LintRule rule, StepCatalog catalog, StepUsage usage) {
         return switch (rule) {
             case UNDOCUMENTED_STEP -> undocumentedSteps(catalog);
             case UNDOCUMENTED_PARAMETER -> undocumentedParameters(catalog);
             case DUPLICATE_STEP -> duplicateSteps(catalog);
-            case SOURCE_PROBLEM -> sourceProblems(catalog);
+            case UNUSED_STEP -> unusedSteps(usage);
+            case SOURCE_PROBLEM -> sourceProblems(catalog, usage);
         };
     }
 
@@ -78,8 +86,15 @@ public final class CatalogLinter {
         return violations;
     }
 
-    private static List<Violation> sourceProblems(StepCatalog catalog) {
-        return catalog.problems().stream()
+    private static List<Violation> unusedSteps(StepUsage usage) {
+        return usage.unusedSteps().stream()
+                .map(step -> new Violation(LintRule.UNUSED_STEP, step.location(),
+                        "Step " + quoted(step) + " is not used by any feature file"))
+                .toList();
+    }
+
+    private static List<Violation> sourceProblems(StepCatalog catalog, StepUsage usage) {
+        return Stream.concat(catalog.problems().stream(), usage.problems().stream())
                 .map(problem -> new Violation(LintRule.SOURCE_PROBLEM, problem.location(), problem.message()))
                 .toList();
     }

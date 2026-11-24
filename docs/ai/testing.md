@@ -25,6 +25,7 @@ made of pure functions over text, so tests use real objects.
 | The parser | Give Java source in a text block to `parser.parseSource(...)`, assert on the catalog | `StepDefinitionParserTest` |
 | A renderer or the layout | Build a catalog with the `TestSteps` builders, assert on the output | `MarkdownRendererTest` |
 | The linter | Build a catalog, assert on the violations | `CatalogLinterTest` |
+| Step usage | Write feature files in a `@TempDir`, parse step source, assert on the `StepUsage` | `StepUsageAnalyzerTest` |
 | Anything touching files | Use `@TempDir`, never a real path | `DocumentationGeneratorTest` |
 
 Tests go through the public entry point of a package (see [architecture.md](architecture.md)),

@@ -14,7 +14,13 @@ public enum LintRule {
     /** Two step definitions with the same expression: Cucumber refuses to run them. */
     DUPLICATE_STEP,
 
-    /** Anything the parser reported: unreadable file, parameter count mismatch, and so on. */
+    /** A step definition that no feature file uses. Skipped when feature files cannot be read. */
+    UNUSED_STEP,
+
+    /**
+     * Anything that could not be read or understood: unparsable file, parameter count
+     * mismatch, expression that cannot be matched, and so on.
+     */
     SOURCE_PROBLEM;
 
     public String id() {

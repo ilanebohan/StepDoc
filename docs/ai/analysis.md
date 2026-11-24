@@ -38,6 +38,8 @@ Not every case applies to every change. Pick the relevant ones, and say which yo
 - **Sources**: wildcard import; fully qualified annotation; non-English keyword; an annotation
   with a step-like name from another library; nested class; default package; file that does
   not parse; file that is not UTF-8; empty directory.
+- **Feature files**: none found; a file that does not parse; another Gherkin language;
+  background; scenario outline and its examples; a step used only through a custom parameter type.
 - **Output**: text containing `|`, a backtick, `<`, `&` or quotes; empty catalog; one step;
   the same expression twice; Windows path separators.
 
