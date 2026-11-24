@@ -30,7 +30,8 @@ coverage floors, Javadoc and build rules. If it passes locally, the CI build wil
 
 ## Branches
 
-- `main` only holds releases. Nobody pushes or merges there directly.
+- `main` only holds releases. Nobody pushes or merges there directly; the maintainer releases
+  with the procedure in [docs/releasing.md](docs/releasing.md).
 - `develop` is where work comes together. **Start from `develop` and open your pull request against `develop`.**
 
 Name your branch `<github-user>/<type>/<issue>`:
