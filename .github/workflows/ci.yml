@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+# Read-only token by default; no job here needs to write to the repository.
+permissions:
+  contents: read
+
+# A newer push on the same branch or PR makes the running build pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Actions are pinned to a commit SHA (tag in comment): a moved or hijacked tag cannot
+# change what runs here. Dependabot keeps the pins up to date.
+jobs:
+  branch-name:
+    name: Branch name
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check branch naming rules
+        # Branch names are user input: passed through env, never interpolated in the script.
+        env:
+          HEAD: ${{ github.head_ref }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          # main only receives releases from develop
+          if [ "$BASE" = "main" ]; then
+            [ "$HEAD" = "develop" ] && exit 0
+            echo "::error::Only develop can be merged into main (got '$HEAD')."
+            exit 1
+          fi
+          # develop receives <github-user>/<type>/<issue> branches and Dependabot updates
+          if [[ "$HEAD" =~ ^[A-Za-z0-9-]+/(feature|fix|tech|docs|test)/[a-z0-9._-]+$ ]] \
+             || [[ "$HEAD" == dependabot/* ]]; then
+            exit 0
+          fi
+          echo "::error::Branch '$HEAD' must be named <github-user>/<type>/<issue>, type being feature, fix, tech, docs or test."
+          exit 1
+
+  dependency-review:
+    name: Dependency review
+    # Needs a public repository (or GitHub Advanced Security): skipped while the repository is private.
+    if: github.event_name == 'pull_request' && !github.event.repository.private
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Blocks a pull request adding a dependency with a known vulnerability.
+      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: moderate
+
+  build:
+    name: Build (JDK ${{ matrix.java }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # 17 is the minimum supported version, 21 and 25 the current LTS users run.
+        os: [ubuntu-latest]
+        java: ['17', '21', '25']
+        # Paths and line endings differ on Windows: one job there catches it.
+        include:
+          - os: windows-latest
+            java: '17'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      # verify = compile with warnings as errors, unit tests, coverage floors,
+      # Javadoc build and build environment rules (see the parent pom).
+      - name: Build, test and check
+        run: ${{ runner.os == 'Windows' && '.\mvnw.cmd' || './mvnw' }} -B -ntp verify
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports-jdk${{ matrix.java }}-${{ matrix.os }}
+          path: '**/target/surefire-reports/'
+          if-no-files-found: ignore
+
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-report
+          path: stepdoc-core/target/site/jacoco/
+
+  plugin-smoke-test:
+    name: Plugin smoke test
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Install the plugin locally
+        run: ./mvnw -B -ntp install -DskipTests
+
+      # The example contains a deliberately broken step, so only generate is run here.
+      - name: Generate the documentation of the example project
+        working-directory: examples/bookshop
+        run: ../../mvnw -B -ntp stepdoc:generate
+
+      - name: Check the generated files
+        working-directory: examples/bookshop/target/stepdoc
+        run: |
+          grep -q "I add {int} copies of {string}" steps.md
+          grep -q "<title>Bookshop steps</title>" steps.html
+
+      - name: Upload the generated documentation
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: example-documentation
+          path: examples/bookshop/target/stepdoc/
+
+  # Single check to require in branch protection: it stays valid when jobs or the
+  # JDK matrix change. A skipped job (pull-request-only jobs on a push) counts as passed.
+  result:
+    name: CI result
+    if: always()
+    needs: [branch-name, dependency-review, build, plugin-smoke-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Fail if a job failed or was cancelled
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Job results: $RESULTS"
+          if [[ " $RESULTS " == *" failure "* || " $RESULTS " == *" cancelled "* ]]; then
+            exit 1
+          fi
