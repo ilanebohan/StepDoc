@@ -439,7 +439,7 @@ class StepDefinitionParserTest {
                     """);
             write("steps/cart/README.md", "@When(\"not java\")");
 
-            StepCatalog catalog = parser.parseDirectory(root);
+            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.UTF_8);
 
             assertThat(catalog.steps())
                     .extracting(step -> step.location().file(), StepDefinition::expression)
@@ -459,13 +459,37 @@ class StepDefinitionParserTest {
                     class CartSteps { @When("I add a book") void add() {} }
                     """);
 
-            StepCatalog catalog = parser.parseDirectory(root);
+            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.UTF_8);
 
             assertThat(catalog.steps()).extracting(StepDefinition::expression).containsExactly("I add a book");
             assertThat(catalog.problems()).extracting(problem -> problem.location().file())
                     .containsExactly("steps/Broken.java", "steps/Legacy.java");
             assertThat(catalog.problems().get(0).message()).startsWith("File could not be parsed");
             assertThat(catalog.problems().get(1).message()).isEqualTo("File is not valid UTF-8, it was skipped");
+        }
+
+        @Test
+        void readsSourcesInTheRequestedEncoding() throws IOException {
+            Files.write(root.resolve("CafeSteps.java"), """
+                    import io.cucumber.java.en.When;
+                    class CafeSteps { @When("I order a caf\u00e9") void order() {} }
+                    """.getBytes(StandardCharsets.ISO_8859_1));
+
+            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.ISO_8859_1);
+
+            assertThat(catalog.steps()).extracting(StepDefinition::expression).containsExactly("I order a caf\u00e9");
+            assertThat(catalog.problems()).isEmpty();
+        }
+
+        @Test
+        void namesTheEncodingAFileIsNotValidIn() throws IOException {
+            Files.write(root.resolve("CafeSteps.java"),
+                    "class CafeSteps { /* caf\u00e9 */ }".getBytes(StandardCharsets.ISO_8859_1));
+
+            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.US_ASCII);
+
+            assertThat(catalog.problems()).extracting(Problem::message)
+                    .containsExactly("File is not valid US-ASCII, it was skipped");
         }
 
         private void write(String relativePath, String content) throws IOException {

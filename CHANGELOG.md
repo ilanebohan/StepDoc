@@ -20,3 +20,5 @@ break one of them; such a change is listed under "Changed" or "Removed". The cla
 - `stepdoc:help` lists the goals and their settings.
 - `@StepDoc` adds descriptions and example values that Javadoc cannot express.
 - Step annotations are recognised in every Gherkin language.
+- Sources are read in the encoding of the project (`project.build.sourceEncoding`), UTF-8 when
+  it sets none; `encoding` overrides it.

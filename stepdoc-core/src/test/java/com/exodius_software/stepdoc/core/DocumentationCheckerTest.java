@@ -3,6 +3,7 @@ package com.exodius_software.stepdoc.core;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -51,7 +52,7 @@ class DocumentationCheckerTest {
                     Given an empty cart
                 """);
 
-        DocumentationChecker.Result result = new DocumentationChecker().check(sources, List.of(features), ALL_RULES);
+        DocumentationChecker.Result result = check(ALL_RULES);
 
         assertThat(result.violations()).extracting(Violation::toString)
                 .containsExactly("[unused-step] CartSteps.java:8 "
@@ -62,7 +63,7 @@ class DocumentationCheckerTest {
 
     @Test
     void warnsThatUnusedStepsWereNotCheckedWhenThereIsNoFeatureFile() throws IOException {
-        DocumentationChecker.Result result = new DocumentationChecker().check(sources, List.of(features), ALL_RULES);
+        DocumentationChecker.Result result = check(ALL_RULES);
 
         assertThat(result.violations()).isEmpty();
         assertThat(result.warnings()).singleElement().asString()
@@ -74,9 +75,14 @@ class DocumentationCheckerTest {
         Files.writeString(features.resolve("broken.feature"), "This is not Gherkin");
         Set<LintRule> withoutUnusedStep = EnumSet.complementOf(EnumSet.of(LintRule.UNUSED_STEP));
 
-        DocumentationChecker.Result result = new DocumentationChecker().check(sources, List.of(features), withoutUnusedStep);
+        DocumentationChecker.Result result = check(withoutUnusedStep);
 
         assertThat(result.violations()).isEmpty();
         assertThat(result.warnings()).isEmpty();
+    }
+
+    private DocumentationChecker.Result check(Set<LintRule> rules) throws IOException {
+        SourceSettings utf8Sources = new SourceSettings(sources, StandardCharsets.UTF_8);
+        return new DocumentationChecker().check(utf8Sources, List.of(features), rules);
     }
 }

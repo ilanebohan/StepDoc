@@ -106,6 +106,7 @@ The [user guide](docs/user-guide.md) explains each setting, each rule and each m
 | Setting | Default | |
 |---|---|---|
 | `sourceDirectory` | `src/test/java` | Where the step definitions are |
+| `encoding` | `project.build.sourceEncoding`, else UTF-8 | Encoding of the step definition sources |
 | `skip` | `false` | Skips StepDoc |
 
 **`generate`**
