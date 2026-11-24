@@ -30,7 +30,7 @@ StepDoc gives the team two things:
 
 1. StepDoc reads the **source files** of your step definitions, as text.
 2. It finds every method that carries a Cucumber step annotation (`@Given`, `@When`, `@Then`
-   and their equivalents in every Gherkin language).
+   and their equivalents in every Gherkin language), and every step written as a lambda.
 3. It takes the documentation of each step from its Javadoc, and from the optional `@StepDoc`
    annotation.
 4. `stepdoc:generate` writes the catalog; `stepdoc:check` applies the documentation rules.
@@ -114,17 +114,48 @@ public void addCopies(int quantity, String title) { ... }
   `@StepDoc` description is empty (`description = ""`) keeps its Javadoc description, so you
   can add examples without repeating the text.
 
+### Steps written as lambdas
+
+With `cucumber-java8`, a step is a call made by a class that implements `En`, or the interface
+of another language. A lambda can carry neither Javadoc nor `@StepDoc`, so StepDoc reads the
+**block comment written just above the call**, with the syntax of Javadoc:
+
+```java
+public class CartSteps implements En {
+
+    public CartSteps() {
+        /*
+         * Adds copies of a book to the cart. The cart is created if needed.
+         *
+         * @param quantity number of copies, at least 1
+         * @param title    book title, exactly as shown in the catalog
+         */
+        When("I add {int} copies of {string}", (Integer quantity, String title) -> { ... });
+    }
+}
+```
+
+- `/* ... */` and `/** ... */` are both read. Prefer `/* ... */`: since Java 23 the compiler
+  can warn about a `/** ... */` comment that is not placed on a declaration. A `//` comment is
+  not read.
+- Each `@param` describes the **lambda parameter of the same name**. A step given a method
+  reference (`this::addCopies`) is listed, but its parameters have no name and cannot be
+  documented: write a lambda.
+- The class must implement the interface **itself**. Steps of a class that only inherits it
+  from a parent class are not found.
+- Example values need `@StepDoc`, so they are not available for these steps.
 ### What StepDoc recognises
 
 | In your code | In the catalog |
 |---|---|
 | A step annotation of any Gherkin language, imported by name, through `.*` or written fully qualified | One entry, under its keyword |
 | Several step annotations on one method | One entry per annotation, sharing the documentation |
+| A step written as a lambda (`cucumber-java8`): `When("I pay", () -> ...)` in a class that implements `En` or the interface of another language | One entry, under its keyword |
 | A constant as step text: `@When(Phrases.ADD)` | Read like a text in quotes, when the constant is declared in the scanned sources |
 | A Cucumber Expression: `I add {int} copies of {string}` | Each parameter with its type: `{int}`, `{string}`, `{}`, or your own `{color}` |
 | A regular expression: `^I pay by (card\|cash)$` | Each capturing group, with the Java type of the method parameter |
 | A data table or a doc string as last parameter | A parameter marked `data table` or `doc string` |
-| A parameter type of yours: `@ParameterType("red\|blue")` on a method `color` | Listed under "Parameter types" with its Javadoc; each `{color}` parameter shows what it matches |
+| A parameter type of yours: `@ParameterType("red\|blue")` on a method `color`, or `ParameterType("color", "red\|blue", ...)` with `cucumber-java8` | Listed under "Parameter types" with its Javadoc, or the block comment above the call; each `{color}` parameter shows what it matches |
 
 Hooks (`@Before`, `@After`) and annotations of other libraries are ignored.
 
@@ -244,7 +275,7 @@ It prefers saying nothing to being wrong:
   rest of its text matches a scenario step.
 
 `undefined-step` can only know the step definitions StepDoc reads. A step implemented
-somewhere else (another module, a dependency, a lambda), or by a step definition reported as
+somewhere else (another module, a dependency), or by a step definition reported as
 a `source-problem`, looks undefined. Fix the source problems first; if your scenarios use
 steps defined outside `sourceDirectory`, leave `undefined-step` out of `rules`.
 
@@ -306,10 +337,10 @@ from `check`, the only goal that reads feature files.
 |---|---|---|
 | `File could not be parsed, it was skipped: ...` | The Java file has a syntax error | Fix the file; its steps are missing from the catalog until then |
 | `File is not valid UTF-8, it was skipped` | The file is not written in the encoding StepDoc reads, named in the message | Convert the file, or set `encoding` (or `project.build.sourceEncoding`) to the encoding of your sources |
-| `Step expression of method ... cannot be read from the scanned sources, the step was skipped` | The step text is a constant declared outside `sourceDirectory` (a dependency, another module), or a computed value | Write the text in the annotation, or declare the constant in the scanned sources |
-| `Step "..." has 1 parameter(s) but method ... takes 0` | The step text and the method do not have the same number of parameters. Cucumber will fail on this step | Fix the expression or the method |
+| `Step expression of ... cannot be read from the scanned sources, the step was skipped` | The step text of the named method or lambda is a constant declared outside `sourceDirectory` (a dependency, another module), or a computed value | Write the text in the annotation or the call, or declare the constant in the scanned sources |
+| `Step "..." has 1 parameter(s) but ... takes 0` | The step text and the named method or lambda do not have the same number of parameters. Cucumber will fail on this step | Fix the expression, or the method or lambda |
 | `@StepDoc documents 2 parameter(s) but method ... takes 1` | `@StepDoc` describes more parameters than the method has | Remove the extra `@StepDoc.Param` |
-| `Parameter type '...' cannot be read from the scanned sources, it was ignored` | The regular expression of a `@ParameterType` is a constant declared outside `sourceDirectory`, or a computed value | Write it in the annotation, or declare the constant in the scanned sources |
+| `Parameter type '...' cannot be read from the scanned sources, it was ignored` | The regular expression of a parameter type, or its name in a `ParameterType(...)` call, is a constant declared outside `sourceDirectory`, or a computed value | Write it in the annotation or the call, or declare the constant in the scanned sources |
 | `Parameter type '...' has an invalid regular expression (...), it was ignored` | The regular expression does not compile. Cucumber will fail on it too | Fix the expression |
 | `Parameter type '...' cannot be used: ...` | Cucumber refuses this declaration, for instance a name declared twice or the name of a built-in type | Rename or remove one of the declarations |
 | `Feature file could not be parsed: ...` | A `.feature` file is not valid Gherkin | Fix the file; `unused-step` and `undefined-step` are skipped until then |
@@ -330,10 +361,11 @@ Configuration errors stop the build at once and say which setting is wrong, for 
 
 - **Constants declared outside the scanned sources** (a dependency, another module) have no
   value for StepDoc: a step whose text is such a constant is reported and skipped.
-- **Steps written as lambdas** (`cucumber-java8`) are not detected.
-- **Parameter types that are not declared with `@ParameterType`** in the scanned sources
-  (registered in code, or coming from a dependency) are shown by name only, and assumed to
-  match anything.
+- **Steps written as lambdas** are only found in a class that implements the `cucumber-java8`
+  interface itself, and a method reference given in place of a lambda has unnamed parameters.
+- **Parameter types that are not declared in the scanned sources**, with `@ParameterType` or
+  a `ParameterType(...)` call of `cucumber-java8` (registered another way, or coming from a
+  dependency), are shown by name only, and assumed to match anything.
 - **Keywords added by a Cucumber newer than StepDoc** are not classified as Given, When or
   Then when imported by name, and not detected behind a `.*` import, until StepDoc is updated.
 - **Only Java sources** are read: step definitions written in Kotlin, Scala or Groovy are not

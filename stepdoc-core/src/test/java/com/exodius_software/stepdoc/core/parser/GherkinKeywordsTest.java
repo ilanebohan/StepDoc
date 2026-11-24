@@ -56,6 +56,14 @@ class GherkinKeywordsTest {
     }
 
     @Test
+    void mapsACucumberJava8InterfaceToTheAnnotationPackageOfItsLanguage() {
+        assertThat(GherkinKeywords.packageOfLambdaInterface("En")).contains("io.cucumber.java.en");
+        assertThat(GherkinKeywords.packageOfLambdaInterface("Zh_cn")).contains("io.cucumber.java.zh_cn");
+        assertThat(GherkinKeywords.packageOfLambdaInterface("LambdaGlue")).isEmpty();
+        assertThat(GherkinKeywords.packageOfLambdaInterface("en")).isEmpty();
+    }
+
+    @Test
     void knowsNoKeywordOutsideItsOwnLanguagePackage() {
         assertThat(GherkinKeywords.kindOf("io.cucumber.java.en", "Wenn")).isEmpty();
         assertThat(GherkinKeywords.kindOf("io.cucumber.java.en", "Before")).isEmpty();

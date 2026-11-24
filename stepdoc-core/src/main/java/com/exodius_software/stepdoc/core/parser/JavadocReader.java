@@ -6,7 +6,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Pattern;
 
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.comments.BlockComment;
+import com.github.javaparser.ast.comments.Comment;
+import com.github.javaparser.ast.comments.JavadocComment;
 import com.github.javaparser.javadoc.Javadoc;
 import com.github.javaparser.javadoc.JavadocBlockTag;
 import com.github.javaparser.javadoc.description.JavadocDescription;
@@ -15,7 +19,7 @@ import com.github.javaparser.javadoc.description.JavadocInlineTag;
 
 import com.exodius_software.stepdoc.core.util.Whitespace;
 
-/** Turns a method's Javadoc into plain text: one string per paragraph, inline tags unwrapped. */
+/** Turns Javadoc into plain text: one string per paragraph, inline tags unwrapped. */
 final class JavadocReader {
 
     record MethodJavadoc(String description, Map<String, String> parameterDescriptions) {
@@ -31,6 +35,21 @@ final class JavadocReader {
 
     static MethodJavadoc read(MethodDeclaration method) {
         return method.getJavadoc().map(JavadocReader::toMethodJavadoc).orElse(MethodJavadoc.NONE);
+    }
+
+    /**
+     * Reads a block comment with the syntax of Javadoc, whether it opens with one star or two.
+     * A line comment is not read: of several lines in a row, only the last one belongs to the
+     * code that follows.
+     */
+    static MethodJavadoc readComment(Comment comment) {
+        if (comment instanceof JavadocComment javadoc) {
+            return toMethodJavadoc(javadoc.parse());
+        }
+        if (comment instanceof BlockComment block) {
+            return toMethodJavadoc(StaticJavaParser.parseJavadoc(block.getContent(), false));
+        }
+        return MethodJavadoc.NONE;
     }
 
     private static MethodJavadoc toMethodJavadoc(Javadoc javadoc) {
