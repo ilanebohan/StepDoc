@@ -21,7 +21,10 @@ public @interface StepDoc {
     /** Description of what the step does. Overrides the Javadoc summary when set. */
     String value() default "";
 
-    /** Parameter documentation, in the order the parameters appear in the expression. */
+    /**
+     * Parameter documentation, in method parameter order. A trailing data table or
+     * doc string argument is documented the same way. Takes precedence over {@code @param}.
+     */
     Param[] params() default {};
 
     /** Documentation of a single step parameter. */
