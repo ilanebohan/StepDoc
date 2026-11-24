@@ -30,7 +30,7 @@ Packages of `stepdoc-core` (under `com.exodius_software.stepdoc.core`):
 | `render` | Layout decisions and the output formats | `OutputFormat`, `RenderOptions`, `GroupBy`, `CatalogRenderer` |
 | `usage` | Feature file reading, matching of steps and step definitions | `StepUsageAnalyzer`, `StepUsage` |
 | `lint` | Documentation rules | `CatalogLinter`, `LintRule`, `Violation` |
-| `util` | Shared helpers | `EnumNames`, `FileTree`, `Whitespace` (internal, public for technical reasons) |
+| `util` | Shared helpers | `EnumNames`, `FileTree`, `TextFiles`, `Whitespace` (internal, public for technical reasons) |
 | (root) | `DocumentationGenerator` and `DocumentationChecker`: what a build tool calls | themselves |
 
 ## Design decisions

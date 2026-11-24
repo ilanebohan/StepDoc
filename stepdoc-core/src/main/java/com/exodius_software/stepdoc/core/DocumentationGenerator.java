@@ -49,8 +49,8 @@ public final class DocumentationGenerator {
 
     private final StepDefinitionParser parser = new StepDefinitionParser();
 
-    public Result generate(Path sourceRoot, OutputSettings output, RenderOptions options) throws IOException {
-        StepCatalog catalog = parser.parseDirectory(sourceRoot);
+    public Result generate(SourceSettings sources, OutputSettings output, RenderOptions options) throws IOException {
+        StepCatalog catalog = parser.parseDirectory(sources.root(), sources.encoding());
         Files.createDirectories(output.directory());
         List<Path> writtenFiles = new ArrayList<>();
         for (OutputFormat format : EnumSet.copyOf(output.formats())) { // enum order: stable output listing

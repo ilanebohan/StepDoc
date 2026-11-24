@@ -37,9 +37,9 @@ public final class DocumentationChecker {
      * @param featureDirectories searched for {@code .feature} files, and only read when
      *                           {@link LintRule#UNUSED_STEP} is enabled
      */
-    public Result check(Path sourceRoot, List<Path> featureDirectories, Set<LintRule> enabledRules)
+    public Result check(SourceSettings sources, List<Path> featureDirectories, Set<LintRule> enabledRules)
             throws IOException {
-        StepCatalog catalog = parser.parseDirectory(sourceRoot);
+        StepCatalog catalog = parser.parseDirectory(sources.root(), sources.encoding());
         StepUsage usage = enabledRules.contains(LintRule.UNUSED_STEP)
                 ? StepUsageAnalyzer.analyze(catalog, featureDirectories)
                 : StepUsage.NOT_REQUESTED;

@@ -3,6 +3,7 @@ package com.exodius_software.stepdoc.core.usage;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -205,6 +206,24 @@ class StepUsageAnalyzerTest {
                     .startsWith("Step \"I add {int books\" cannot be matched against feature files: ")
                     .doesNotContain("\n");
         });
+    }
+
+    @Test
+    void readsAFeatureFileThatDeclaresItsOwnEncoding() throws IOException {
+        Files.write(features.resolve("cafe.feature"), """
+                # encoding: iso-8859-1
+                Feature: Caf\u00e9
+                  Scenario: Ordering
+                    When I order a caf\u00e9
+                """.getBytes(StandardCharsets.ISO_8859_1));
+
+        StepUsage usage = analyze("""
+                import io.cucumber.java.en.When;
+                class CafeSteps { @When("I order a caf\u00e9") void order() {} }
+                """, features);
+
+        assertThat(usage.unusedSteps()).isEmpty();
+        assertThat(usage.problems()).isEmpty();
     }
 
     private static StepUsage analyze(String stepSource, Path... featureDirectories) throws IOException {
