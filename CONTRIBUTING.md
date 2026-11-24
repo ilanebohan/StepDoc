@@ -6,8 +6,7 @@ Thanks for your interest! Bug reports, ideas and pull requests are all welcome.
 
 - **Bug or idea?** Open an [issue](https://github.com/ilanebohan/StepDoc/issues) first.
 - **Bigger change?** Discuss it in an issue before coding, so your work is not wasted.
-- **Security issue?** Do not open a public issue: use
-  [private vulnerability reporting](https://github.com/ilanebohan/StepDoc/security/advisories/new).
+- **Security issue?** Do not open a public issue: follow the [security policy](SECURITY.md).
 
 ## Set up
 
@@ -74,8 +73,9 @@ Keep the summary short and in the imperative; explain the *why* in the body if n
 
 1. Keep one topic per pull request.
 2. Describe what changes and why, and link the issue (`Closes #42`).
-3. Make sure the CI is green: **CI result** and **CodeQL** must pass.
-4. Keep your branch up to date with `develop`.
+3. Add a line to the "Unreleased" section of [CHANGELOG.md](CHANGELOG.md) if users can see the change.
+4. Make sure the CI is green: **CI result** and **CodeQL** must pass.
+5. Keep your branch up to date with `develop`.
 
 ## Using AI tools
 

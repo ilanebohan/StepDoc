@@ -17,6 +17,6 @@ Required. Write "None" if no AI tool helped with this pull request. Otherwise:
 - [ ] The branch starts from `develop` and is named `<github-user>/<type>/<issue>`
 - [ ] `./mvnw verify` passes locally
 - [ ] Behavior changes come with tests
-- [ ] The user guide and the README are updated if users see the change
+- [ ] The user guide, the README and `CHANGELOG.md` are updated if users see the change
 - [ ] The "AI assistance" section above is filled in and accurate
 - [ ] I have read every line of this pull request and can explain it
