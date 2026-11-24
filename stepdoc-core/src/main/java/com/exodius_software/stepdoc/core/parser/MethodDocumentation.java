@@ -22,9 +22,9 @@ record MethodDocumentation(String description, List<ParamDoc> parameters, int st
 
     private static final ParamDoc UNDOCUMENTED = new ParamDoc("", List.of());
 
-    static MethodDocumentation of(MethodDeclaration method) {
+    static MethodDocumentation of(MethodDeclaration method, StringConstants constants) {
         MethodJavadoc javadoc = JavadocReader.read(method);
-        StepDocValues stepDoc = StepDocReader.read(method);
+        StepDocValues stepDoc = StepDocReader.read(method, constants);
 
         NodeList<Parameter> methodParameters = method.getParameters();
         List<ParamDoc> parameters = new ArrayList<>();

@@ -120,6 +120,7 @@ public void addCopies(int quantity, String title) { ... }
 |---|---|
 | A step annotation of any Gherkin language, imported by name, through `.*` or written fully qualified | One entry, under its keyword |
 | Several step annotations on one method | One entry per annotation, sharing the documentation |
+| A constant as step text: `@When(Phrases.ADD)` | Read like a text in quotes, when the constant is declared in the scanned sources |
 | A Cucumber Expression: `I add {int} copies of {string}` | Each parameter with its type: `{int}`, `{string}`, `{}`, or your own `{color}` |
 | A regular expression: `^I pay by (card\|cash)$` | Each capturing group, with the Java type of the method parameter |
 | A data table or a doc string as last parameter | A parameter marked `data table` or `doc string` |
@@ -294,7 +295,7 @@ from `check`, the only goal that reads feature files.
 |---|---|---|
 | `File could not be parsed, it was skipped: ...` | The Java file has a syntax error | Fix the file; its steps are missing from the catalog until then |
 | `File is not valid UTF-8, it was skipped` | The file is not written in the encoding StepDoc reads, named in the message | Convert the file, or set `encoding` (or `project.build.sourceEncoding`) to the encoding of your sources |
-| `Step expression of method ... is not a string literal, the step was skipped` | The step text is a constant (`@When(Steps.ADD)`), which StepDoc cannot read without compiling | Write the text in the annotation |
+| `Step expression of method ... cannot be read from the scanned sources, the step was skipped` | The step text is a constant declared outside `sourceDirectory` (a dependency, another module), or a computed value | Write the text in the annotation, or declare the constant in the scanned sources |
 | `Step "..." has 1 parameter(s) but method ... takes 0` | The step text and the method do not have the same number of parameters. Cucumber will fail on this step | Fix the expression or the method |
 | `@StepDoc documents 2 parameter(s) but method ... takes 1` | `@StepDoc` describes more parameters than the method has | Remove the extra `@StepDoc.Param` |
 | `Feature file could not be parsed: ...` | A `.feature` file is not valid Gherkin | Fix the file; `unused-step` is skipped until then |
@@ -313,7 +314,8 @@ Configuration errors stop the build at once and say which setting is wrong, for 
 
 ## Limits
 
-- **Constants as step text** (`@When(Steps.ADD)`) are not read: the step is reported and skipped.
+- **Constants declared outside the scanned sources** (a dependency, another module) have no
+  value for StepDoc: a step whose text is such a constant is reported and skipped.
 - **Steps written as lambdas** (`cucumber-java8`) are not detected.
 - **Your own parameter types** (`{color}`) are shown by name, without the values they accept.
 - **Keywords added by a Cucumber newer than StepDoc** are not classified as Given, When or

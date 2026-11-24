@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParseResult;
@@ -36,11 +37,11 @@ public final class StepDefinitionParser {
      * file system. A file that is not valid in {@code encoding} is reported and skipped.
      */
     public StepCatalog parseDirectory(Path sourceRoot, Charset encoding) throws IOException {
-        List<StepCatalog> catalogs = new ArrayList<>();
+        List<ParsedFile> files = new ArrayList<>();
         for (FileTree.Entry file : FileTree.filesWithExtension(sourceRoot, JAVA_EXTENSION)) {
-            catalogs.add(parseFile(file, encoding));
+            files.add(read(file, encoding));
         }
-        return StepCatalog.concat(catalogs);
+        return scan(files);
     }
 
     /**
@@ -49,25 +50,47 @@ public final class StepDefinitionParser {
      * @param relativePath where the source comes from, used to locate steps and problems
      */
     public StepCatalog parseSource(String relativePath, String source) {
+        return scan(List.of(parse(relativePath, source)));
+    }
+
+    /** Constants are collected from every file first: a step may use one declared in another file. */
+    private static StepCatalog scan(List<ParsedFile> files) {
+        StringConstants constants = StringConstants.declaredIn(
+                files.stream().flatMap(file -> file.unit().stream()).toList());
+        List<StepCatalog> catalogs = new ArrayList<>();
+        for (ParsedFile file : files) {
+            catalogs.add(file.unit()
+                    .map(unit -> new SourceFileScan(file.relativePath(), unit, constants).scan())
+                    .orElseGet(() -> new StepCatalog(List.of(), file.problems())));
+        }
+        return StepCatalog.concat(catalogs);
+    }
+
+    private ParsedFile read(FileTree.Entry file, Charset encoding) throws IOException {
+        try {
+            return parse(file.relativePath(), Files.readString(file.path(), encoding));
+        } catch (CharacterCodingException e) {
+            return ParsedFile.unreadable(file.relativePath(), 1,
+                    "File is not valid " + encoding.name() + ", it was skipped");
+        }
+    }
+
+    private ParsedFile parse(String relativePath, String source) {
         ParseResult<CompilationUnit> result = javaParser.parse(source);
         if (!result.isSuccessful() || result.getResult().isEmpty()) {
-            return onlyProblem(relativePath, firstSyntaxErrorLine(result), syntaxErrorMessage(result));
+            return ParsedFile.unreadable(relativePath, firstSyntaxErrorLine(result), syntaxErrorMessage(result));
         }
-        return new SourceFileScan(relativePath, result.getResult().get()).scan();
+        return new ParsedFile(relativePath, result.getResult(), List.of());
     }
 
-    private StepCatalog parseFile(FileTree.Entry file, Charset encoding) throws IOException {
-        try {
-            return parseSource(file.relativePath(), Files.readString(file.path(), encoding));
-        } catch (CharacterCodingException e) {
-            return onlyProblem(file.relativePath(), 1, "File is not valid " + encoding.name() + ", it was skipped");
+    /** A source file after parsing: its syntax tree, or the problem that prevented reading it. */
+    private record ParsedFile(String relativePath, Optional<CompilationUnit> unit, List<Problem> problems) {
+
+        static ParsedFile unreadable(String relativePath, int line, String message) {
+            Problem problem = new Problem(new SourceLocation(relativePath, line), message);
+            return new ParsedFile(relativePath, Optional.empty(), List.of(problem));
         }
     }
-
-    private static StepCatalog onlyProblem(String relativePath, int line, String message) {
-        return new StepCatalog(List.of(), List.of(new Problem(new SourceLocation(relativePath, line), message)));
-    }
-
     private static int firstSyntaxErrorLine(ParseResult<CompilationUnit> result) {
         return result.getProblems().stream()
                 .findFirst()
