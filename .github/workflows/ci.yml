@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [develop, main]
 
+# Read-only token by default; no job here needs to write to the repository.
 permissions:
   contents: read
 
@@ -14,13 +15,17 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Actions are pinned to a commit SHA (tag in comment): a moved or hijacked tag cannot
+# change what runs here. Dependabot keeps the pins up to date.
 jobs:
   branch-name:
     name: Branch name
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
       - name: Check branch naming rules
+        # Branch names are user input: passed through env, never interpolated in the script.
         env:
           HEAD: ${{ github.head_ref }}
           BASE: ${{ github.base_ref }}
@@ -39,9 +44,25 @@ jobs:
           echo "::error::Branch '$HEAD' must be named <github-user>/<type>/<issue>, type being feature, fix, tech, docs or test."
           exit 1
 
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Blocks a pull request adding a dependency with a known vulnerability.
+      - uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: moderate
+
   build:
     name: Build (JDK ${{ matrix.java }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -53,33 +74,47 @@ jobs:
           - os: windows-latest
             java: '17'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
           cache: maven
 
-      - name: Build and run unit tests
+      # verify = compile with warnings as errors, unit tests, coverage floors,
+      # Javadoc build and build environment rules (see the parent pom).
+      - name: Build, test and check
         run: ${{ runner.os == 'Windows' && '.\mvnw.cmd' || './mvnw' }} -B -ntp verify
 
       - name: Upload test reports
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-reports-jdk${{ matrix.java }}-${{ matrix.os }}
           path: '**/target/surefire-reports/'
           if-no-files-found: ignore
 
+      - name: Upload coverage report
+        if: matrix.os == 'ubuntu-latest' && matrix.java == '17'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-report
+          path: stepdoc-core/target/site/jacoco/
+
   plugin-smoke-test:
     name: Plugin smoke test
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: '17'
@@ -100,18 +135,19 @@ jobs:
           grep -q "<title>Bookshop steps</title>" steps.html
 
       - name: Upload the generated documentation
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: example-documentation
           path: examples/bookshop/target/stepdoc/
 
   # Single check to require in branch protection: it stays valid when jobs or the
-  # JDK matrix change. A skipped job (branch name on a push) counts as passed.
+  # JDK matrix change. A skipped job (pull-request-only jobs on a push) counts as passed.
   result:
     name: CI result
     if: always()
-    needs: [branch-name, build, plugin-smoke-test]
+    needs: [branch-name, dependency-review, build, plugin-smoke-test]
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
       - name: Fail if a job failed or was cancelled
         env:
