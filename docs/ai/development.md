@@ -71,12 +71,16 @@ Mojos stay thin: fields annotated with `@Parameter`, one call into core, transla
 result into logs or a build failure. If you are writing an `if` about steps in a mojo, it
 belongs in core, where it can be unit tested.
 
+The plugin compiles against the oldest Maven it supports (`maven-api.version` in the parent
+pom), and the CI runs it with that version. Do not raise it to reach a newer Maven API.
+
 ## Definition of done
 
 - [ ] `./mvnw verify` passes, and you ran it yourself.
 - [ ] Every behavior change has a test that fails without it.
 - [ ] The user documentation is updated if users can see the change (setting, rule, output,
-      message): `docs/user-guide.md` is the reference, `README.md` the short version.
+      message): `docs/user-guide.md` is the reference, `README.md` the short version, and
+      `CHANGELOG.md` gets a line under "Unreleased".
 - [ ] For a rendering or plugin change: you ran the plugin on `examples/bookshop` and looked at
       the generated files.
 - [ ] These guides are updated if you changed a design decision, a recipe or a limitation.

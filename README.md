@@ -154,7 +154,8 @@ prints a warning and reports nothing rather than calling used steps unused.
 
 ## Contributing
 
-Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Changes are listed in the
+[changelog](CHANGELOG.md), and security issues go through the [security policy](SECURITY.md).
 
 ## License
 

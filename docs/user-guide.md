@@ -278,6 +278,8 @@ On an existing project, the first `check` usually reports a lot. A way to get th
 | `sourceDirectory` | `src/test/java` | Where your step definitions are, searched recursively |
 | `skip` | `false` | Skips StepDoc, for example with `-Dstepdoc.skip` |
 
+`mvn stepdoc:help -Ddetail` prints every goal and setting on the command line.
+
 In a multi-module project, declare the plugin in each module that holds step definitions:
 StepDoc documents the sources of the module it runs in, not the steps that come from a
 dependency. If the feature files live in another module, point `featureDirectories` at it,

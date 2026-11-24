@@ -41,6 +41,15 @@
                 <configuration>
                     <goalPrefix>stepdoc</goalPrefix>
                 </configuration>
+                <executions>
+                    <!-- Adds stepdoc:help, which lists the goals and their settings. -->
+                    <execution>
+                        <id>help-goal</id>
+                        <goals>
+                            <goal>helpmojo</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

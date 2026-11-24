@@ -13,4 +13,21 @@
     <artifactId>stepdoc-annotations</artifactId>
     <name>StepDoc :: Annotations</name>
     <description>Optional annotations to enrich step definition documentation. No runtime dependency.</description>
+
+    <build>
+        <plugins>
+            <!-- A stable module name for users on the module path, before a module-info exists. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>com.exodius_software.stepdoc.annotations</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

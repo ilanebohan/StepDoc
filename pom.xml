@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+         child.project.url.inherit.append.path="false">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.exodius-software.stepdoc</groupId>
@@ -11,7 +12,8 @@
 
     <name>StepDoc</name>
     <description>Living documentation for Cucumber step definitions: a catalog of steps and their parameters in Markdown and HTML, and a documentation linter.</description>
-    <url>https://exodius-software.com</url>
+    <url>https://github.com/ilanebohan/StepDoc</url>
+    <inceptionYear>2026</inceptionYear>
 
     <licenses>
         <license>
@@ -24,14 +26,29 @@
         <developer>
             <name>Exodius Software</name>
             <url>https://exodius-software.com</url>
+            <organization>Exodius Software</organization>
+            <organizationUrl>https://exodius-software.com</organizationUrl>
         </developer>
     </developers>
 
-    <scm>
+    <!-- Without these attributes Maven appends the module name to every URL below in the module POMs. -->
+    <scm child.scm.connection.inherit.append.path="false"
+         child.scm.developerConnection.inherit.append.path="false"
+         child.scm.url.inherit.append.path="false">
         <url>https://github.com/ilanebohan/StepDoc</url>
         <connection>scm:git:https://github.com/ilanebohan/StepDoc.git</connection>
         <developerConnection>scm:git:https://github.com/ilanebohan/StepDoc.git</developerConnection>
     </scm>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/ilanebohan/StepDoc/issues</url>
+    </issueManagement>
+
+    <ciManagement>
+        <system>GitHub Actions</system>
+        <url>https://github.com/ilanebohan/StepDoc/actions</url>
+    </ciManagement>
 
     <modules>
         <module>stepdoc-annotations</module>
@@ -50,12 +67,20 @@
         <cucumber-java.version>8.1.0</cucumber-java.version>
         <junit.version>6.1.3</junit.version>
         <assertj.version>3.27.7</assertj.version>
-        <maven-api.version>3.10.2</maven-api.version>
+        <!-- The oldest Maven the plugin supports, not the newest: compiling against it guarantees
+             that the plugin uses nothing a 3.9 user lacks. Raise it only to drop 3.9 support. -->
+        <maven-api.version>3.9.0</maven-api.version>
         <maven-plugin-tools.version>3.16.0</maven-plugin-tools.version>
 
         <compiler-plugin.version>3.16.0</compiler-plugin.version>
         <surefire-plugin.version>3.6.1</surefire-plugin.version>
         <jar-plugin.version>3.5.1</jar-plugin.version>
+        <source-plugin.version>3.4.0</source-plugin.version>
+        <clean-plugin.version>3.5.0</clean-plugin.version>
+        <resources-plugin.version>3.5.0</resources-plugin.version>
+        <install-plugin.version>3.2.0</install-plugin.version>
+        <deploy-plugin.version>3.2.0</deploy-plugin.version>
+        <site-plugin.version>3.22.0</site-plugin.version>
         <enforcer-plugin.version>3.7.0</enforcer-plugin.version>
         <javadoc-plugin.version>3.12.0</javadoc-plugin.version>
         <jacoco-plugin.version>0.8.16</jacoco-plugin.version>
@@ -138,6 +163,10 @@
                             <arg>-Xlint:all</arg>
                             <arg>-Werror</arg>
                         </compilerArgs>
+                        <!-- StepDoc uses no annotation processor. Up to JDK 22, javac runs any processor
+                             found in a dependency (Sisu, behind the Maven API) and then warns about the
+                             annotations nobody claimed; JDK 23 and later do not. Same build everywhere. -->
+                        <proc>none</proc>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -149,6 +178,36 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
                     <version>${jar-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>${source-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>${clean-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>${resources-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>${install-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>${deploy-plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-site-plugin</artifactId>
+                    <version>${site-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -185,8 +244,50 @@
                                 </requireJavaVersion>
                                 <dependencyConvergence/>
                                 <banDuplicatePomDependencyVersions/>
+                                <!-- No plugin version left to the Maven that runs the build. -->
+                                <requirePluginVersions/>
                             </rules>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- The MIT license asks for its text in every copy: each jar carries it. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>add-license</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${maven.multiModuleProjectDirectory}</directory>
+                                    <includes>
+                                        <include>LICENSE</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Maven Central requires a sources jar; built on every build like the Javadoc. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
