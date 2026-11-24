@@ -1,5 +1,7 @@
 package com.exodius_software.stepdoc.core.render;
 
+import static java.util.stream.Collectors.joining;
+
 import java.util.List;
 import java.util.Locale;
 
@@ -20,22 +22,10 @@ final class HtmlRenderer implements CatalogRenderer {
     public String render(StepCatalog catalog, RenderOptions options) {
         List<Section> sections = CatalogLayout.sections(catalog, options.groupBy());
         StringBuilder html = new StringBuilder();
-        html.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n")
-                .append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
-                .append("<title>").append(escape(options.title())).append("</title>\n")
-                .append("<style>\n").append(HtmlAssets.STYLE);
-        if (!options.extraCss().isEmpty()) {
-            html.append(safeInsideStyleElement(options.extraCss())).append('\n');
-        }
-        html.append("</style>\n</head>\n<body>\n<header>\n")
-                .append("<h1>").append(escape(options.title())).append("</h1>\n")
-                .append("<p class=\"summary\">")
-                .append(sections.isEmpty() ? "No step definitions found." : escape(CatalogLayout.summary(catalog, sections)))
-                .append("</p>\n");
-        if (!sections.isEmpty()) {
-            html.append("<input type=\"search\" id=\"filter\" placeholder=\"Filter steps\" aria-label=\"Filter steps\">\n");
-        }
-        html.append("</header>\n<main>\n");
+        appendHead(html, options);
+        html.append("<body>\n");
+        appendHeader(html, options.title(), catalog, sections);
+        html.append("<main>\n");
         for (Section section : sections) {
             appendSection(html, section, options);
         }
@@ -45,6 +35,29 @@ final class HtmlRenderer implements CatalogRenderer {
         }
         html.append("</main>\n<script>\n").append(HtmlAssets.FILTER_SCRIPT).append("</script>\n</body>\n</html>\n");
         return html.toString();
+    }
+
+    private static void appendHead(StringBuilder html, RenderOptions options) {
+        html.append("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n")
+                .append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n")
+                .append("<title>").append(escape(options.title())).append("</title>\n")
+                .append("<style>\n").append(HtmlAssets.STYLE);
+        if (!options.extraCss().isEmpty()) {
+            html.append(safeInsideStyleElement(options.extraCss())).append('\n');
+        }
+        html.append("</style>\n</head>\n");
+    }
+
+    private static void appendHeader(StringBuilder html, String title, StepCatalog catalog, List<Section> sections) {
+        html.append("<header>\n")
+                .append("<h1>").append(escape(title)).append("</h1>\n")
+                .append("<p class=\"summary\">").append(escape(CatalogLayout.summary(catalog, sections)))
+                .append("</p>\n");
+        if (!sections.isEmpty()) { // nothing to filter on an empty page
+            html.append("<input type=\"search\" id=\"filter\" placeholder=\"Filter steps\"")
+                    .append(" aria-label=\"Filter steps\">\n");
+        }
+        html.append("</header>\n");
     }
 
     private static void appendSection(StringBuilder html, Section section, RenderOptions options) {
@@ -95,11 +108,10 @@ final class HtmlRenderer implements CatalogRenderer {
             html.append(" ").append(escape(parameter.description()).replace("\n\n", "<br>"));
         }
         if (!parameter.examples().isEmpty()) {
-            html.append(" <span class=\"examples\">e.g. ");
-            for (int i = 0; i < parameter.examples().size(); i++) {
-                html.append(i == 0 ? "" : ", ").append("<code>").append(escape(parameter.examples().get(i))).append("</code>");
-            }
-            html.append("</span>");
+            String examples = parameter.examples().stream()
+                    .map(example -> "<code>" + escape(example) + "</code>")
+                    .collect(joining(", "));
+            html.append(" <span class=\"examples\">e.g. ").append(examples).append("</span>");
         }
         html.append("</li>");
     }

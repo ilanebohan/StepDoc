@@ -1,92 +1,153 @@
-# Cucumber StepDoc
+# StepDoc
 
-Living documentation for your Cucumber step definitions.
+[![CI](https://github.com/ilanebohan/StepDoc/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/ilanebohan/StepDoc/actions/workflows/ci.yml)
 
-Large test suites end up with hundreds of steps nobody can find. StepDoc reads your
-step definition sources and generates a searchable catalog: every step, its
-description, and what each parameter expects, with examples.
+StepDoc turns your Cucumber step definitions into a searchable catalog, and checks
+that every step is documented.
 
-> Status: early development, not published yet.
+New here? The [user guide](docs/user-guide.md) covers everything, step by step.
 
-## Goals
+## How it works
 
-- **Zero friction**: Javadoc is the default source of documentation. The `@StepDoc`
-  annotation is optional, for what Javadoc cannot express (example values).
-- **Deterministic**: same sources, same output. No runtime, no test execution, no AI.
-- **Several outputs** from one model: Markdown, static HTML with search, Confluence.
-- **Lint mode**: fail the build on undocumented steps, parameter mismatches,
-  unused or duplicated steps.
+1. StepDoc reads your step definition sources (`src/test/java` by default).
+   Nothing is compiled and no test is run. Step annotations of every Gherkin language are
+   recognised (`io.cucumber.java.en`, `io.cucumber.java.de`, ...).
+2. Each step is described by its Javadoc. `@StepDoc` is optional, for example values.
+3. `stepdoc:generate` writes the catalog in Markdown and HTML.
+   `stepdoc:check` fails the build when a step is not documented, or not used by any feature file.
 
-## Modules
+```java
+/**
+ * Adds copies of a book to the cart.
+ *
+ * @param quantity number of copies
+ * @param title    book title, as shown in the catalog
+ */
+@StepDoc(params = {
+        @StepDoc.Param(description = "Number of copies", examples = {"1", "3"}),
+        @StepDoc.Param(description = "Book title", examples = "Dune")
+})
+@When("I add {int} copies of {string}")
+public void addCopies(int quantity, String title) { ... }
+```
 
-| Module | Role |
-|---|---|
-| `stepdoc-annotations` | Optional `@StepDoc` annotation, source-retained |
-| `stepdoc-core` | Parser, documentation model, renderers, linter |
-| `stepdoc-maven-plugin` | `stepdoc:generate` and `stepdoc:check` goals |
+becomes
 
-## Usage
+| Keyword | Step | Description | Parameters |
+| --- | --- | --- | --- |
+| When | `I add {int} copies of {string}` | Adds copies of a book to the cart. | **quantity** `{int}` Number of copies (e.g. `1`, `3`)<br>**title** `{string}` Book title (e.g. `Dune`) |
+
+The HTML page has the same content, a search box and a dark mode.
+
+## Installation
+
+Requires Java 17+ and Maven 3.9+.
+
+StepDoc is on Maven Central. Add the plugin to the `pom.xml` of your test project:
 
 ```xml
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
-    <configuration>
-        <title>Bookshop steps</title>
-        <formats>html</formats>
-    </configuration>
+    <version>0.1.0</version>
 </plugin>
 ```
 
-```shell
-mvn stepdoc:generate
+To use `@StepDoc`, add the annotations too. It only exists in your sources, so the `test` scope is enough:
+
+```xml
+<dependency>
+    <groupId>com.exodius-software.stepdoc</groupId>
+    <artifactId>stepdoc-annotations</artifactId>
+    <version>0.1.0</version>
+    <scope>test</scope>
+</dependency>
 ```
 
-Every setting can also be passed on the command line, e.g. `-Dstepdoc.formats=markdown`.
+## Usage
 
-| Setting | Property | Default | |
-|---|---|---|---|
-| `sourceDirectory` | `stepdoc.sourceDirectory` | `src/test/java` | Root scanned for step definitions |
-| `outputDirectory` | `stepdoc.outputDirectory` | `target/stepdoc` | Where files are written |
-| `fileName` | `stepdoc.fileName` | `steps` | File name without extension |
-| `formats` | `stepdoc.formats` | `markdown,html` | `markdown`, `html` or both |
-| `title` | `stepdoc.title` | `Step catalog` | Document title |
-| `groupBy` | `stepdoc.groupBy` | `class` | `class` or `keyword` |
-| `showSourceLocation` | `stepdoc.showSourceLocation` | `true` | File and line column |
-| `showProblems` | `stepdoc.showProblems` | `true` | Section listing what could not be documented |
-| `htmlStylesheet` | `stepdoc.htmlStylesheet` | | CSS file appended to the HTML page styles |
-| `skip` | `stepdoc.skip` | `false` | Skips every StepDoc goal |
+```shell
+mvn stepdoc:generate   # writes target/stepdoc/steps.md and steps.html
+mvn stepdoc:check      # fails the build if a step is undocumented, duplicated or unused
+```
 
-### Checking the documentation
+To run both on every build, add an execution to the plugin:
 
-`mvn stepdoc:check` (bound to `verify` when declared in `<executions>`) fails the build when
-a step breaks one of the rules:
+```xml
+<executions>
+    <execution>
+        <goals>
+            <goal>generate</goal>
+            <goal>check</goal>
+        </goals>
+    </execution>
+</executions>
+```
 
-| Rule | Reported when |
+## Configuration
+
+Everything has a default. Set what you need in `<configuration>`, or on the command line
+with `-Dstepdoc.<setting>=<value>`, e.g. `-Dstepdoc.formats=html`.
+
+The [user guide](docs/user-guide.md) explains each setting, each rule and each message in detail.
+
+**Both goals**
+
+| Setting | Default | |
+|---|---|---|
+| `sourceDirectory` | `src/test/java` | Where the step definitions are |
+| `encoding` | `project.build.sourceEncoding`, else UTF-8 | Encoding of the step definition sources |
+| `skip` | `false` | Skips StepDoc |
+
+**`generate`**
+
+| Setting | Default | |
+|---|---|---|
+| `formats` | `markdown,html` | `markdown`, `html` or both |
+| `title` | `Step catalog` | Document title |
+| `groupBy` | `class` | One section per `class`, or per `keyword` (Given, When, Then...) |
+| `outputDirectory` | `target/stepdoc` | Where files are written |
+| `fileName` | `steps` | File name, without extension |
+| `showSourceLocation` | `true` | Adds the file and line of each step |
+| `showProblems` | `true` | Lists what could not be documented |
+| `htmlStylesheet` | | CSS file added to the HTML page |
+
+**`check`**
+
+| Setting | Default | |
+|---|---|---|
+| `rules` | all | Rules to apply, comma-separated (see below) |
+| `featureDirectories` | `src/test/resources` | Where the `.feature` files are, for the `unused-step` rule. Several directories can be given, comma-separated; they are searched recursively |
+| `failOnViolation` | `true` | `false` only prints warnings |
+
+| Rule | Fails when |
 |---|---|
-| `undocumented-step` | A step has no description, neither Javadoc nor `@StepDoc` |
-| `undocumented-parameter` | A step argument has no description |
-| `duplicate-step` | Two methods share the same expression, which Cucumber refuses to run |
-| `source-problem` | A file cannot be parsed, or a step and its method disagree on parameters |
+| `undocumented-step` | A step has no description |
+| `undocumented-parameter` | A parameter has no description |
+| `duplicate-step` | Two steps have the same text, which Cucumber refuses to run |
+| `unused-step` | No `.feature` file uses the step |
+| `source-problem` | A file cannot be read, or a step and its method disagree on parameters |
 
-| Setting | Property | Default | |
-|---|---|---|---|
-| `rules` | `stepdoc.rules` | all rules | Rule ids to apply, comma-separated |
-| `failOnViolation` | `stepdoc.failOnViolation` | `true` | `false` only logs warnings |
+`unused-step` matches the steps of your feature files against your step definitions the way
+Cucumber does: any Gherkin language, scenario outlines with their example values, Cucumber
+Expressions and regular expressions. If it finds no feature file, or cannot parse one, it
+prints a warning and reports nothing rather than calling used steps unused.
 
-`sourceDirectory` and `skip` work as for `generate`.
+## Try it
 
-To try both goals on a fictional project, run `./mvnw install`, then
-`../../mvnw stepdoc:generate stepdoc:check` from `examples/bookshop`.
-
-## Build
-
-Requires a JDK 17+.
+`examples/bookshop` is a small fake test project in this repository. After `./mvnw install`
+at the root, run from that folder:
 
 ```shell
-./mvnw verify
+../../mvnw stepdoc:generate stepdoc:check
 ```
+
+`check` fails on purpose: the example contains undocumented, unused and broken steps.
+
+## Contributing
+
+Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md). Changes are listed in the
+[changelog](CHANGELOG.md), and security issues go through the [security policy](SECURITY.md).
 
 ## License
 

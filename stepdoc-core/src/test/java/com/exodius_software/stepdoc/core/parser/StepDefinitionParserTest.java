@@ -120,7 +120,7 @@ class StepDefinitionParserTest {
         }
 
         @Test
-        void keepsANonEnglishKeywordAsWrittenWithoutGuessingItsKind() {
+        void classifiesANonEnglishKeywordAndKeepsItAsWritten() {
             StepDefinition step = onlyStep("""
                     import io.cucumber.java.de.Wenn;
 
@@ -130,6 +130,54 @@ class StepDefinitionParserTest {
                     """);
 
             assertThat(step.keyword()).isEqualTo("Wenn");
+            assertThat(step.kind()).isEqualTo(StepKind.WHEN);
+        }
+
+        @Test
+        void resolvesTheKeywordsOfEveryWildcardImportedLanguage() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.de.*;
+                    import io.cucumber.java.en.*;
+
+                    class CartSteps {
+                        @Gegebensei("an empty cart") void emptyCart() {}
+                        @When("I add a book") void addBook() {}
+                        @Dann("the cart has one book") void oneBook() {}
+                    }
+                    """);
+
+            assertThat(catalog.steps())
+                    .extracting(StepDefinition::keyword, StepDefinition::kind)
+                    .containsExactly(
+                            tuple("Gegebensei", StepKind.GIVEN),
+                            tuple("When", StepKind.WHEN),
+                            tuple("Dann", StepKind.THEN));
+        }
+
+        @Test
+        void doesNotGuessAStepBehindAWildcardImportOfAnotherLanguage() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.de.*;
+
+                    class CartSteps {
+                        @When("I add a book") void addBook() {}
+                    }
+                    """);
+
+            assertThat(catalog.steps()).isEmpty();
+        }
+
+        @Test
+        void listsANamedStepAnnotationUnknownToGherkinWithoutGuessingItsKind() {
+            StepDefinition step = onlyStep("""
+                    import io.cucumber.java.en.Whenever;
+
+                    class CartSteps {
+                        @Whenever("I add a book") void addBook() {}
+                    }
+                    """);
+
+            assertThat(step.keyword()).isEqualTo("Whenever");
             assertThat(step.kind()).isEqualTo(StepKind.OTHER);
         }
 
@@ -391,7 +439,7 @@ class StepDefinitionParserTest {
                     """);
             write("steps/cart/README.md", "@When(\"not java\")");
 
-            StepCatalog catalog = parser.parseDirectory(root);
+            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.UTF_8);
 
             assertThat(catalog.steps())
                     .extracting(step -> step.location().file(), StepDefinition::expression)
@@ -405,19 +453,43 @@ class StepDefinitionParserTest {
         void reportsUnreadableFilesWithoutStoppingTheScan() throws IOException {
             write("steps/Broken.java", "class Broken {");
             Files.write(root.resolve("steps/Legacy.java"),
-                    "class Legacy { /* café */ }".getBytes(StandardCharsets.ISO_8859_1));
+                    "class Legacy { /* caf\u00e9 */ }".getBytes(StandardCharsets.ISO_8859_1));
             write("steps/CartSteps.java", """
                     import io.cucumber.java.en.When;
                     class CartSteps { @When("I add a book") void add() {} }
                     """);
 
-            StepCatalog catalog = parser.parseDirectory(root);
+            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.UTF_8);
 
             assertThat(catalog.steps()).extracting(StepDefinition::expression).containsExactly("I add a book");
             assertThat(catalog.problems()).extracting(problem -> problem.location().file())
                     .containsExactly("steps/Broken.java", "steps/Legacy.java");
             assertThat(catalog.problems().get(0).message()).startsWith("File could not be parsed");
             assertThat(catalog.problems().get(1).message()).isEqualTo("File is not valid UTF-8, it was skipped");
+        }
+
+        @Test
+        void readsSourcesInTheRequestedEncoding() throws IOException {
+            Files.write(root.resolve("CafeSteps.java"), """
+                    import io.cucumber.java.en.When;
+                    class CafeSteps { @When("I order a caf\u00e9") void order() {} }
+                    """.getBytes(StandardCharsets.ISO_8859_1));
+
+            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.ISO_8859_1);
+
+            assertThat(catalog.steps()).extracting(StepDefinition::expression).containsExactly("I order a caf\u00e9");
+            assertThat(catalog.problems()).isEmpty();
+        }
+
+        @Test
+        void namesTheEncodingAFileIsNotValidIn() throws IOException {
+            Files.write(root.resolve("CafeSteps.java"),
+                    "class CafeSteps { /* caf\u00e9 */ }".getBytes(StandardCharsets.ISO_8859_1));
+
+            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.US_ASCII);
+
+            assertThat(catalog.problems()).extracting(Problem::message)
+                    .containsExactly("File is not valid US-ASCII, it was skipped");
         }
 
         private void write(String relativePath, String content) throws IOException {

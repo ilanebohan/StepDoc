@@ -7,12 +7,12 @@
     <parent>
         <groupId>com.exodius-software.stepdoc</groupId>
         <artifactId>stepdoc-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.1.0</version>
     </parent>
 
     <artifactId>stepdoc-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
-    <name>Cucumber StepDoc :: Maven Plugin</name>
+    <name>StepDoc :: Maven Plugin</name>
     <description>Generates and checks step definition documentation during the build.</description>
 
     <dependencies>
@@ -41,6 +41,15 @@
                 <configuration>
                     <goalPrefix>stepdoc</goalPrefix>
                 </configuration>
+                <executions>
+                    <!-- Adds stepdoc:help, which lists the goals and their settings. -->
+                    <execution>
+                        <id>help-goal</id>
+                        <goals>
+                            <goal>helpmojo</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    groups:
+      maven-plugins:
+        patterns: ["org.apache.maven.plugins:*"]
+      # gherkin and cucumber-java must move together: a test checks one against the other.
+      cucumber:
+        patterns: ["io.cucumber:*"]
+    ignore:
+      # Compiled against the oldest Maven the plugin supports, on purpose: see the parent pom.
+      - dependency-name: "org.apache.maven:maven-plugin-api"
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
