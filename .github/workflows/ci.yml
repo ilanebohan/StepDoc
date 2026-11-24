@@ -124,7 +124,6 @@ jobs:
       - name: Install the plugin locally
         run: ./mvnw -B -ntp install -DskipTests
 
-      # The example contains a deliberately broken step, so only generate is run here.
       - name: Generate the documentation of the example project
         working-directory: examples/bookshop
         run: ../../mvnw -B -ntp stepdoc:generate
@@ -135,6 +134,29 @@ jobs:
           grep -q "I add {int} copies of {string}" steps.md
           grep -q "<title>Bookshop steps</title>" steps.html
 
+      # The example breaks rules on purpose: check must report exactly these violations.
+      - name: Check the example project
+        working-directory: examples/bookshop
+        shell: bash
+        run: |
+          ../../mvnw -B -ntp stepdoc:check -Dstepdoc.failOnViolation=false | tee "$RUNNER_TEMP/check.log"
+          grep -q "5 violation(s), 8 step(s) checked against 5 rule(s)" "$RUNNER_TEMP/check.log"
+
+      # The plugin promises Maven 3.9 and newer, so the oldest one runs it for real.
+      # The archive is checked against a pinned checksum, like the pinned actions.
+      - name: Run the plugin with Maven 3.9.0
+        working-directory: examples/bookshop
+        shell: bash
+        env:
+          MAVEN_URL: https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.0/apache-maven-3.9.0-bin.tar.gz
+          MAVEN_SHA512: 1ea149f4e48bc7b34d554aef86f948eca7df4e7874e30caf449f3708e4f8487c71a5e5c072a05f17c60406176ebeeaf56b5f895090c7346f8238e2da06cf6ecd
+        run: |
+          curl -fsSL "$MAVEN_URL" -o "$RUNNER_TEMP/maven.tar.gz"
+          echo "$MAVEN_SHA512  $RUNNER_TEMP/maven.tar.gz" | sha512sum --check --quiet
+          tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
+          "$RUNNER_TEMP/apache-maven-3.9.0/bin/mvn" -B -ntp stepdoc:help stepdoc:generate stepdoc:check \
+            -Dstepdoc.failOnViolation=false | tee "$RUNNER_TEMP/maven-3.9.0.log"
+          grep -q "5 violation(s), 8 step(s) checked against 5 rule(s)" "$RUNNER_TEMP/maven-3.9.0.log"
       - name: Upload the generated documentation
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
