@@ -32,9 +32,9 @@ public final class StepUsageAnalyzer {
         if (!features.problems().isEmpty()) {
             return StepUsage.notAnalyzed("some feature files could not be parsed", features.problems());
         }
-        StepMatcher matcher = new StepMatcher(features.steps());
+        StepMatcher matcher = new StepMatcher(features.steps(), catalog.parameterTypes());
         List<StepDefinition> unusedSteps = new ArrayList<>();
-        List<Problem> problems = new ArrayList<>();
+        List<Problem> problems = new ArrayList<>(matcher.parameterTypeProblems());
         for (StepDefinition step : catalog.steps()) {
             try {
                 if (!matcher.isUsed(step)) {

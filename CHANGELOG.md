@@ -15,6 +15,9 @@ break one of them; such a change is listed under "Changed" or "Removed". The cla
 
 - A step text or a `@StepDoc` text written as a constant is read, when the constant is declared
   in the scanned sources, in the same file or in another one.
+- Parameter types declared with `@ParameterType` are documented: the catalog lists them, each
+  `{type}` parameter shows what it matches, and `unused-step` matches them with their own
+  regular expression instead of assuming they accept anything.
 
 ### Changed
 

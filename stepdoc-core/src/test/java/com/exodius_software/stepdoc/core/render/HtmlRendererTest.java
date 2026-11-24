@@ -5,8 +5,14 @@ import static com.exodius_software.stepdoc.core.render.TestSteps.expressionParam
 import static com.exodius_software.stepdoc.core.render.TestSteps.step;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
+import com.exodius_software.stepdoc.core.model.ParameterTypeDefinition;
+import com.exodius_software.stepdoc.core.model.SourceLocation;
+import com.exodius_software.stepdoc.core.model.StepCatalog;
+import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.model.StepKind;
 
 class HtmlRendererTest {
@@ -58,6 +64,24 @@ class HtmlRendererTest {
         String html = renderer.render(catalog(step(StepKind.WHEN, "I add a book", "shop.CartSteps", 1)), options);
 
         assertThat(html).doesNotContain("<th>Source</th>", "CartSteps.java");
+    }
+
+    @Test
+    void showsWhatADeclaredParameterTypeMatchesAndEscapesIt() {
+        StepDefinition step = step(StepKind.WHEN, "I pick a {color} cover", "", "shop.CartSteps", 4,
+                expressionParameter("color", "String", "color", ""));
+        ParameterTypeDefinition color = new ParameterTypeDefinition("color", "<b>|blue", "Color of a cover.",
+                new SourceLocation("steps/Types.java", 9));
+
+        String html = renderer.render(new StepCatalog(List.of(step), List.of(color), List.of()),
+                RenderOptions.defaults());
+
+        assertThat(html)
+                .contains("<code>{color}</code> <span class=\"matching\">matching <code>&lt;b&gt;|blue</code></span>")
+                .contains("<h2>Parameter types</h2>")
+                .contains("<td><code>{color}</code></td><td><code>&lt;b&gt;|blue</code></td>"
+                        + "<td><p>Color of a cover.</p></td><td class=\"source\">steps/Types.java:9</td>")
+                .doesNotContain("<b>");
     }
 
     @Test

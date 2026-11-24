@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.exodius_software.stepdoc.core.model.ExpressionSyntax;
+import com.exodius_software.stepdoc.core.model.ParameterTypeDefinition;
 import com.exodius_software.stepdoc.core.model.Problem;
 import com.exodius_software.stepdoc.core.model.SourceLocation;
 import com.exodius_software.stepdoc.core.model.StepCatalog;
@@ -445,6 +446,91 @@ class StepDefinitionParserTest {
             Path file = root.resolve(relativePath);
             Files.createDirectories(file.getParent());
             Files.writeString(file, content);
+        }
+    }
+
+    @Nested
+    class ParameterTypes {
+
+        @Test
+        void readsDeclaredParameterTypesWithTheirNameRegexAndDocumentation() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.ParameterType;
+
+                    class Types {
+                        /** Color of a book cover. */
+                        @ParameterType("red|blue")
+                        public String color(String value) { return value; }
+
+                        @ParameterType(value = "\\\\d{13}", name = "isbn")
+                        public String bookNumber(String value) { return value; }
+                    }
+                    """);
+
+            assertThat(catalog.parameterTypes())
+                    .extracting(ParameterTypeDefinition::name, ParameterTypeDefinition::regex,
+                            ParameterTypeDefinition::description, type -> type.location().line())
+                    .containsExactly(
+                            tuple("color", "red|blue", "Color of a book cover.", 5),
+                            tuple("isbn", "\\d{13}", "", 8));
+            assertThat(catalog.steps()).isEmpty();
+        }
+
+        @Test
+        void acceptsTheAnnotationBehindAWildcardImportOrFullyQualified() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.*;
+
+                    class Types {
+                        @ParameterType("red|blue") String color(String value) { return value; }
+                        @io.cucumber.java.ParameterType("\\\\d+") String size(String value) { return value; }
+                    }
+                    """);
+
+            assertThat(catalog.parameterTypes()).extracting(ParameterTypeDefinition::name)
+                    .containsExactly("color", "size");
+        }
+
+        @Test
+        void ignoresAParameterTypeAnnotationOfAnotherLibrary() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.*;
+                    import com.acme.ParameterType;
+
+                    class Types {
+                        @ParameterType("red|blue") String color(String value) { return value; }
+                    }
+                    """);
+
+            assertThat(catalog.parameterTypes()).isEmpty();
+        }
+
+        @Test
+        void ignoresAnAnnotationOfThatNameWhenNothingImportsItFromCucumber() {
+            StepCatalog catalog = parse("""
+                    class Types {
+                        @ParameterType("red|blue") String color(String value) { return value; }
+                    }
+                    """);
+
+            assertThat(catalog.parameterTypes()).isEmpty();
+        }
+
+        @Test
+        void reportsAParameterTypeItCannotRead() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.ParameterType;
+
+                    class Types {
+                        @ParameterType("(red|blue") String color(String value) { return value; }
+                        @ParameterType(Patterns.SIZE) String size(String value) { return value; }
+                    }
+                    """);
+
+            assertThat(catalog.parameterTypes()).isEmpty();
+            assertThat(catalog.problems()).extracting(Problem::message).containsExactly(
+                    "Parameter type 'color' has an invalid regular expression (Unclosed group), it was ignored",
+                    "Parameter type 'size' cannot be read from the scanned sources, it was ignored");
         }
     }
 

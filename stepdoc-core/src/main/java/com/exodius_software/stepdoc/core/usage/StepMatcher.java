@@ -10,8 +10,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import com.exodius_software.stepdoc.core.model.ParameterTypeDefinition;
+import com.exodius_software.stepdoc.core.model.Problem;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.usage.FeatureFiles.FeatureStep;
+import com.exodius_software.stepdoc.core.util.Whitespace;
 
 import io.cucumber.cucumberexpressions.CucumberExpressionException;
 import io.cucumber.cucumberexpressions.Expression;
@@ -32,8 +35,14 @@ final class StepMatcher {
 
     private final Map<String, List<String>> textsByLanguage = new LinkedHashMap<>();
     private final Map<String, Expressions> expressionsByLanguage = new HashMap<>();
+    private final List<ParameterTypeDefinition> parameterTypes;
 
-    StepMatcher(Collection<FeatureStep> featureSteps) {
+    /**
+     * @param parameterTypes the types the scanned project declares; any other custom type is
+     *                       assumed to match anything
+     */
+    StepMatcher(Collection<FeatureStep> featureSteps, List<ParameterTypeDefinition> parameterTypes) {
+        this.parameterTypes = parameterTypes;
         for (FeatureStep step : featureSteps) {
             textsByLanguage.computeIfAbsent(step.language(), language -> new ArrayList<>()).add(step.text());
         }
@@ -46,13 +55,18 @@ final class StepMatcher {
     boolean isUsed(StepDefinition step) {
         for (Map.Entry<String, List<String>> texts : textsByLanguage.entrySet()) {
             Expression expression = expressionsByLanguage
-                    .computeIfAbsent(texts.getKey(), Expressions::new)
+                    .computeIfAbsent(texts.getKey(), language -> new Expressions(language, parameterTypes))
                     .compile(step.expression());
             if (texts.getValue().stream().anyMatch(text -> expression.match(text).isPresent())) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** The declared parameter types Cucumber itself would refuse, a name declared twice for instance. */
+    List<Problem> parameterTypeProblems() {
+        return new Expressions(Locale.ENGLISH.toLanguageTag(), parameterTypes).problems;
     }
 
     /**
@@ -62,13 +76,24 @@ final class StepMatcher {
      */
     private static final class Expressions {
 
-        private final ParameterTypeRegistry parameterTypes;
+        private final ParameterTypeRegistry registry;
         private final ExpressionFactory factory;
         private final Set<String> assumedTypes = new HashSet<>();
+        private final List<Problem> problems = new ArrayList<>();
 
-        Expressions(String language) {
-            parameterTypes = new ParameterTypeRegistry(Locale.forLanguageTag(language));
-            factory = new ExpressionFactory(parameterTypes);
+        Expressions(String language, List<ParameterTypeDefinition> declaredTypes) {
+            registry = new ParameterTypeRegistry(Locale.forLanguageTag(language));
+            factory = new ExpressionFactory(registry);
+            declaredTypes.forEach(this::declare);
+        }
+
+        private void declare(ParameterTypeDefinition type) {
+            try {
+                define(type.name(), type.regex());
+            } catch (CucumberExpressionException e) {
+                problems.add(new Problem(type.location(), "Parameter type '" + type.name()
+                        + "' cannot be used: " + Whitespace.collapse(e.getMessage())));
+            }
         }
 
         Expression compile(String expression) {
@@ -82,17 +107,20 @@ final class StepMatcher {
         }
 
         /**
-         * A custom parameter type is defined in the user's code, which StepDoc never runs, so
-         * its regex is unknown. It is assumed to match anything: that can hide an unused step,
-         * but never calls a used one unused.
+         * A type the scanned sources do not declare is defined elsewhere, in code StepDoc never
+         * runs, so its regex is unknown. It is assumed to match anything: that can hide an
+         * unused step, but never calls a used one unused.
          */
         private void assume(UndefinedParameterTypeException undefined) {
             String name = undefined.getUndefinedParameterTypeName();
             if (!assumedTypes.add(name)) {
                 throw undefined; // already assumed and still rejected: do not loop forever
             }
-            parameterTypes.defineParameterType(
-                    new ParameterType<>(name, MATCHES_ANYTHING, String.class, AS_TEXT, false, false));
+            define(name, MATCHES_ANYTHING);
+        }
+
+        private void define(String name, String regex) {
+            registry.defineParameterType(new ParameterType<>(name, regex, String.class, AS_TEXT, false, false));
         }
     }
 }

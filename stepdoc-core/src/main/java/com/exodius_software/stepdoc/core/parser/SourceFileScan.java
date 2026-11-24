@@ -3,6 +3,8 @@ package com.exodius_software.stepdoc.core.parser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
@@ -15,6 +17,7 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 
 import com.exodius_software.stepdoc.core.model.ExpressionSyntax;
+import com.exodius_software.stepdoc.core.model.ParameterTypeDefinition;
 import com.exodius_software.stepdoc.core.model.Problem;
 import com.exodius_software.stepdoc.core.model.SourceLocation;
 import com.exodius_software.stepdoc.core.model.StepCatalog;
@@ -34,6 +37,7 @@ final class SourceFileScan {
     private final CucumberStepAnnotations annotationResolver;
     private final StringConstants constants;
     private final List<StepDefinition> steps = new ArrayList<>();
+    private final List<ParameterTypeDefinition> parameterTypes = new ArrayList<>();
     private final List<Problem> problems = new ArrayList<>();
 
     SourceFileScan(String file, CompilationUnit unit, StringConstants constants) {
@@ -45,10 +49,13 @@ final class SourceFileScan {
 
     StepCatalog scan() {
         unit.findAll(MethodDeclaration.class).forEach(this::scanMethod);
-        return new StepCatalog(steps, problems);
+        return new StepCatalog(steps, parameterTypes, problems);
     }
 
     private void scanMethod(MethodDeclaration method) {
+        method.getAnnotations().stream()
+                .filter(annotationResolver::isParameterType)
+                .forEach(annotation -> addParameterType(method, annotation));
         List<StepAnnotation> stepAnnotations = method.getAnnotations().stream()
                 .flatMap(annotation -> annotationResolver.resolve(annotation)
                         .map(keyword -> new StepAnnotation(annotation, keyword))
@@ -60,6 +67,30 @@ final class SourceFileScan {
         MethodDocumentation documentation = MethodDocumentation.of(method, constants);
         checkStepDocParameterCount(method, documentation);
         stepAnnotations.forEach(annotation -> addStep(method, annotation, documentation));
+    }
+
+    /** As in Cucumber, a parameter type is named after its method unless the annotation names it. */
+    private void addParameterType(MethodDeclaration method, AnnotationExpr annotation) {
+        SourceLocation location = locationOf(annotation);
+        String name = AnnotationValues.member(annotation, "name")
+                .flatMap(constants::valueOf)
+                .filter(value -> !value.isBlank())
+                .orElse(method.getNameAsString());
+        Optional<String> regex = AnnotationValues.member(annotation, "value").flatMap(constants::valueOf);
+        if (regex.isEmpty()) {
+            problems.add(new Problem(location, "Parameter type '" + name
+                    + "' cannot be read from the scanned sources, it was ignored"));
+            return;
+        }
+        try {
+            Pattern.compile(regex.get());
+        } catch (PatternSyntaxException e) {
+            problems.add(new Problem(location, "Parameter type '" + name
+                    + "' has an invalid regular expression (" + e.getDescription() + "), it was ignored"));
+            return;
+        }
+        String description = MethodDocumentation.of(method, constants).description();
+        parameterTypes.add(new ParameterTypeDefinition(name, regex.get(), description, location));
     }
 
     private void checkStepDocParameterCount(MethodDeclaration method, MethodDocumentation documentation) {
