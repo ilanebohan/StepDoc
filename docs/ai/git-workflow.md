@@ -56,7 +56,8 @@ Rules:
 
 ## Pull requests
 
-- Target `develop`. The only pull request ever opened against `main` is the release, by the maintainer.
+- Target `develop`. The only pull request ever opened against `main` is the release, by the maintainer
+  (procedure in `docs/releasing.md`; agents prepare it when asked, they never run it).
 - Title in the commit format. Fill in the template of `.github/pull_request_template.md`:
   what changes and why, the linked issue (`Closes #42`), and the checklist, ticked honestly.
 - **Fill in the "AI assistance" section truthfully.** If you wrote or drafted any part of the
