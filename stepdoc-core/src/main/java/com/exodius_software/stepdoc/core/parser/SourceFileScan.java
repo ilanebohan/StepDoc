@@ -130,7 +130,10 @@ final class SourceFileScan {
         return parameters;
     }
 
-    /** Cucumber passes a doc string to a {@code String} or {@code DocString} argument, a data table to anything else. */
+    /**
+     * Cucumber passes a doc string to a {@code String} or {@code DocString} argument,
+     * a data table to anything else.
+     */
     private static StepParameter.Source docArgumentSource(Type type) {
         String simpleName = type instanceof ClassOrInterfaceType classType
                 ? classType.getNameAsString()

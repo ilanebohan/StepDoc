@@ -1,7 +1,6 @@
 package com.exodius_software.stepdoc.core.parser;
 
 import java.util.List;
-import java.util.Optional;
 
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
@@ -65,7 +64,6 @@ final class StepDocReader {
      * rather than dropped, so the gap shows up in the generated documentation.
      */
     private static String text(Expression expression) {
-        Optional<String> constant = AnnotationValues.constantString(expression);
-        return constant.orElseGet(expression::toString);
+        return AnnotationValues.constantString(expression).orElseGet(expression::toString);
     }
 }

@@ -24,8 +24,7 @@ final class MarkdownRenderer implements CatalogRenderer {
         List<Section> sections = CatalogLayout.sections(catalog, options.groupBy());
         StringBuilder markdown = new StringBuilder();
         markdown.append("# ").append(singleLine(options.title())).append("\n\n");
-        markdown.append(sections.isEmpty() ? "No step definitions found." : CatalogLayout.summary(catalog, sections))
-                .append("\n");
+        markdown.append(CatalogLayout.summary(catalog, sections)).append("\n");
         for (Section section : sections) {
             appendSection(markdown, section, options);
         }
@@ -75,7 +74,8 @@ final class MarkdownRenderer implements CatalogRenderer {
             parts.add(text(parameter.description()));
         }
         if (!parameter.examples().isEmpty()) {
-            parts.add("(e.g. " + parameter.examples().stream().map(MarkdownRenderer::codeSpan).collect(joining(", ")) + ")");
+            String examples = parameter.examples().stream().map(MarkdownRenderer::codeSpan).collect(joining(", "));
+            parts.add("(e.g. " + examples + ")");
         }
         return String.join(" ", parts);
     }

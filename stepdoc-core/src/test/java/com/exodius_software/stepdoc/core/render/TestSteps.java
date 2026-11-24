@@ -1,6 +1,7 @@
 package com.exodius_software.stepdoc.core.render;
 
 import java.util.List;
+import java.util.Locale;
 
 import com.exodius_software.stepdoc.core.model.ExpressionSyntax;
 import com.exodius_software.stepdoc.core.model.Problem;
@@ -22,7 +23,7 @@ final class TestSteps {
 
     static StepDefinition step(StepKind kind, String expression, String description, String declaringClass,
                                int line, StepParameter... parameters) {
-        String keyword = kind.name().charAt(0) + kind.name().substring(1).toLowerCase();
+        String keyword = kind.name().charAt(0) + kind.name().substring(1).toLowerCase(Locale.ROOT);
         String file = "steps/" + declaringClass.substring(declaringClass.lastIndexOf('.') + 1) + ".java";
         return new StepDefinition(keyword, kind, expression, ExpressionSyntax.CUCUMBER_EXPRESSION, description,
                 List.of(parameters), declaringClass, "step" + line, new SourceLocation(file, line));
