@@ -76,7 +76,11 @@ final class CatalogLayout {
         };
     }
 
+    /** The sentence under the title: what the document holds. */
     static String summary(StepCatalog catalog, List<Section> sections) {
+        if (sections.isEmpty()) {
+            return "No step definitions found.";
+        }
         return count(catalog.steps().size(), "step") + " in " + count(sections.size(), "section") + ".";
     }
 

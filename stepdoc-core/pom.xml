@@ -11,8 +11,8 @@
     </parent>
 
     <artifactId>stepdoc-core</artifactId>
-    <name>Cucumber StepDoc :: Core</name>
-    <description>Source parser, documentation model, renderers and linter.</description>
+    <name>StepDoc :: Core</name>
+    <description>Source parser, documentation model, renderers, feature file usage analysis and linter.</description>
 
     <dependencies>
         <dependency>

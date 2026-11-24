@@ -9,8 +9,8 @@
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Cucumber StepDoc</name>
-    <description>Living documentation for Cucumber step definitions: descriptions, parameters, Markdown/HTML/Confluence output and a doc linter.</description>
+    <name>StepDoc</name>
+    <description>Living documentation for Cucumber step definitions: a catalog of steps and their parameters in Markdown and HTML, and a documentation linter.</description>
     <url>https://exodius-software.com</url>
 
     <licenses>

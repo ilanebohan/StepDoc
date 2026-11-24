@@ -4,18 +4,16 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import com.exodius_software.stepdoc.core.model.Problem;
 import com.exodius_software.stepdoc.core.model.StepCatalog;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
+import com.exodius_software.stepdoc.core.util.Whitespace;
 
 import io.cucumber.cucumberexpressions.CucumberExpressionException;
 
 /** Finds the step definitions that no feature file uses. */
 public final class StepUsageAnalyzer {
-
-    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private StepUsageAnalyzer() {
     }
@@ -43,16 +41,12 @@ public final class StepUsageAnalyzer {
                     unusedSteps.add(step);
                 }
             } catch (CucumberExpressionException e) {
-                // Usage unknown: report why, and do not call the step unused.
+                // Usage unknown: report why, and do not call the step unused. Cucumber explains the
+                // error over several lines, with a pointer under the faulty column: keep it on one.
                 problems.add(new Problem(step.location(), "Step \"" + step.expression()
-                        + "\" cannot be matched against feature files: " + singleLine(e.getMessage())));
+                        + "\" cannot be matched against feature files: " + Whitespace.collapse(e.getMessage())));
             }
         }
         return new StepUsage(unusedSteps, problems, "");
-    }
-
-    /** Cucumber explains expression errors over several lines, with a pointer under the faulty column. */
-    private static String singleLine(String message) {
-        return WHITESPACE.matcher(message).replaceAll(" ").trim();
     }
 }

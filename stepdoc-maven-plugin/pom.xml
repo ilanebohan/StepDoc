@@ -12,7 +12,7 @@
 
     <artifactId>stepdoc-maven-plugin</artifactId>
     <packaging>maven-plugin</packaging>
-    <name>Cucumber StepDoc :: Maven Plugin</name>
+    <name>StepDoc :: Maven Plugin</name>
     <description>Generates and checks step definition documentation during the build.</description>
 
     <dependencies>

@@ -11,6 +11,6 @@
     </parent>
 
     <artifactId>stepdoc-annotations</artifactId>
-    <name>Cucumber StepDoc :: Annotations</name>
+    <name>StepDoc :: Annotations</name>
     <description>Optional annotations to enrich step definition documentation. No runtime dependency.</description>
 </project>

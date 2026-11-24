@@ -5,9 +5,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParseResult;
@@ -18,6 +16,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.exodius_software.stepdoc.core.model.Problem;
 import com.exodius_software.stepdoc.core.model.SourceLocation;
 import com.exodius_software.stepdoc.core.model.StepCatalog;
+import com.exodius_software.stepdoc.core.util.FileTree;
 
 /**
  * Builds a {@link StepCatalog} from Java sources. Works on source text only:
@@ -36,16 +35,9 @@ public final class StepDefinitionParser {
      * does not depend on the file system.
      */
     public StepCatalog parseDirectory(Path sourceRoot) throws IOException {
-        List<Path> files;
-        try (Stream<Path> paths = Files.walk(sourceRoot)) {
-            files = paths.filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().endsWith(JAVA_EXTENSION))
-                    .sorted(Comparator.comparing(path -> relativePath(sourceRoot, path)))
-                    .toList();
-        }
         List<StepCatalog> catalogs = new ArrayList<>();
-        for (Path file : files) {
-            catalogs.add(parseFile(relativePath(sourceRoot, file), file));
+        for (FileTree.Entry file : FileTree.filesWithExtension(sourceRoot, JAVA_EXTENSION)) {
+            catalogs.add(parseFile(file));
         }
         return StepCatalog.concat(catalogs);
     }
@@ -63,11 +55,11 @@ public final class StepDefinitionParser {
         return new SourceFileScan(relativePath, result.getResult().get()).scan();
     }
 
-    private StepCatalog parseFile(String relativePath, Path file) throws IOException {
+    private StepCatalog parseFile(FileTree.Entry file) throws IOException {
         try {
-            return parseSource(relativePath, Files.readString(file));
+            return parseSource(file.relativePath(), Files.readString(file.path()));
         } catch (CharacterCodingException e) {
-            return onlyProblem(relativePath, 1, "File is not valid UTF-8, it was skipped");
+            return onlyProblem(file.relativePath(), 1, "File is not valid UTF-8, it was skipped");
         }
     }
 
@@ -79,7 +71,8 @@ public final class StepDefinitionParser {
         return result.getProblems().stream()
                 .findFirst()
                 .flatMap(com.github.javaparser.Problem::getLocation)
-                .map(tokenRange -> tokenRange.getBegin().getRange().map(range -> range.begin.line).orElse(1))
+                .flatMap(tokenRange -> tokenRange.getBegin().getRange())
+                .map(range -> range.begin.line)
                 .orElse(1);
     }
 
@@ -89,9 +82,5 @@ public final class StepDefinitionParser {
                 .map(com.github.javaparser.Problem::getMessage)
                 .orElse("unknown error");
         return "File could not be parsed, it was skipped: " + cause;
-    }
-
-    private static String relativePath(Path root, Path file) {
-        return root.relativize(file).toString().replace('\\', '/');
     }
 }

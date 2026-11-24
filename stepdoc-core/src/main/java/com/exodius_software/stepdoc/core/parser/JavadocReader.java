@@ -13,6 +13,8 @@ import com.github.javaparser.javadoc.description.JavadocDescription;
 import com.github.javaparser.javadoc.description.JavadocDescriptionElement;
 import com.github.javaparser.javadoc.description.JavadocInlineTag;
 
+import com.exodius_software.stepdoc.core.util.Whitespace;
+
 /** Turns a method's Javadoc into plain text: one string per paragraph, inline tags unwrapped. */
 final class JavadocReader {
 
@@ -23,7 +25,6 @@ final class JavadocReader {
 
     private static final Pattern PARAGRAPH_TAG = Pattern.compile("(?i)</?p\\s*/?>");
     private static final Pattern BLANK_LINE = Pattern.compile("\\n\\s*\\n");
-    private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
     private JavadocReader() {
     }
@@ -53,7 +54,8 @@ final class JavadocReader {
     /** {@code {@code x}} becomes {@code x}; {@code {@link Cart#add the cart}} becomes its label. */
     private static String inlineTagText(JavadocInlineTag tag) {
         String content = tag.getContent().trim();
-        boolean isLink = tag.getType() == JavadocInlineTag.Type.LINK || tag.getType() == JavadocInlineTag.Type.LINKPLAIN;
+        boolean isLink = tag.getType() == JavadocInlineTag.Type.LINK
+                || tag.getType() == JavadocInlineTag.Type.LINKPLAIN;
         if (!isLink) {
             return content;
         }
@@ -65,7 +67,7 @@ final class JavadocReader {
     private static String normalizeParagraphs(String text) {
         String withBreaks = PARAGRAPH_TAG.matcher(text).replaceAll("\n\n");
         return BLANK_LINE.splitAsStream(withBreaks)
-                .map(paragraph -> WHITESPACE.matcher(paragraph).replaceAll(" ").trim())
+                .map(Whitespace::collapse)
                 .filter(paragraph -> !paragraph.isEmpty())
                 .collect(joining("\n\n"));
     }

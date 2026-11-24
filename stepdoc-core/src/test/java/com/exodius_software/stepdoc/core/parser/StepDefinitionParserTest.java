@@ -453,7 +453,7 @@ class StepDefinitionParserTest {
         void reportsUnreadableFilesWithoutStoppingTheScan() throws IOException {
             write("steps/Broken.java", "class Broken {");
             Files.write(root.resolve("steps/Legacy.java"),
-                    "class Legacy { /* café */ }".getBytes(StandardCharsets.ISO_8859_1));
+                    "class Legacy { /* caf\u00e9 */ }".getBytes(StandardCharsets.ISO_8859_1));
             write("steps/CartSteps.java", """
                     import io.cucumber.java.en.When;
                     class CartSteps { @When("I add a book") void add() {} }
