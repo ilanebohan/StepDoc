@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Fictional test project to try StepDoc by hand. Not part of the build:
+  run ./mvnw install at the root first, then from this folder: ../../mvnw stepdoc:generate
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>fr.bohanilane.stepdoc.examples</groupId>
+    <artifactId>bookshop</artifactId>
+    <version>1.0</version>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>fr.bohanilane.stepdoc</groupId>
+                <artifactId>stepdoc-maven-plugin</artifactId>
+                <version>0.1.0-SNAPSHOT</version>
+                <configuration>
+                    <title>Bookshop steps</title>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
