@@ -12,7 +12,12 @@ import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.LambdaExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 
@@ -32,9 +37,24 @@ final class SourceFileScan {
     private record StepAnnotation(AnnotationExpr expression, StepKeyword keyword) {
     }
 
+    /**
+     * The code a step runs: a method, or what a cucumber-java8 call is given.
+     *
+     * @param label      how a problem names it
+     * @param methodName empty when it is not a method
+     * @param parameters empty when they cannot be read: where cucumber-java8 expects a lambda,
+     *                   Java also accepts a method reference or a variable
+     */
+    private record StepBody(String label, String methodName, Optional<NodeList<Parameter>> parameters) {
+    }
+
+    /** Method of cucumber-java8 that declares a parameter type: name, regular expression, lambda. */
+    private static final String PARAMETER_TYPE_METHOD = "ParameterType";
+
     private final String file;
     private final CompilationUnit unit;
     private final CucumberStepAnnotations annotationResolver;
+    private final LambdaGlueTypes lambdaGlueTypes;
     private final StringConstants constants;
     private final List<StepDefinition> steps = new ArrayList<>();
     private final List<ParameterTypeDefinition> parameterTypes = new ArrayList<>();
@@ -45,10 +65,12 @@ final class SourceFileScan {
         this.unit = unit;
         this.constants = constants;
         this.annotationResolver = CucumberStepAnnotations.of(unit);
+        this.lambdaGlueTypes = LambdaGlueTypes.of(unit);
     }
 
     StepCatalog scan() {
         unit.findAll(MethodDeclaration.class).forEach(this::scanMethod);
+        unit.findAll(MethodCallExpr.class).forEach(this::scanCall);
         return new StepCatalog(steps, parameterTypes, problems);
     }
 
@@ -66,7 +88,39 @@ final class SourceFileScan {
         }
         MethodDocumentation documentation = MethodDocumentation.of(method, constants);
         checkStepDocParameterCount(method, documentation);
-        stepAnnotations.forEach(annotation -> addStep(method, annotation, documentation));
+        StepBody body = new StepBody("method " + method.getNameAsString(), method.getNameAsString(),
+                Optional.of(method.getParameters()));
+        for (StepAnnotation annotation : stepAnnotations) {
+            Optional<Expression> expression = AnnotationValues.member(annotation.expression(), "value");
+            addStep(annotation.keyword(), annotation.expression(), expression, body, documentation);
+        }
+    }
+
+    /**
+     * In a class that implements a cucumber-java8 interface, a call to one of the keyword
+     * methods it inherits declares a step, and a call to {@code ParameterType} a parameter type.
+     */
+    private void scanCall(MethodCallExpr call) {
+        boolean inheritedMethod = call.getScope().map(Expression::isThisExpr).orElse(true);
+        Optional<TypeDeclaration<?>> type = enclosingTypeOf(call);
+        if (!inheritedMethod || type.isEmpty() || !lambdaGlueTypes.isLambdaGlue(type.get())) {
+            return;
+        }
+        int argumentCount = call.getArguments().size();
+        if (argumentCount == 3 && PARAMETER_TYPE_METHOD.equals(call.getNameAsString())) {
+            addLambdaParameterType(call);
+        } else if (argumentCount == 2) {
+            lambdaGlueTypes.keywordOf(type.get(), call.getNameAsString())
+                    .ifPresent(keyword -> addLambdaStep(call, keyword));
+        }
+    }
+
+    private void addLambdaStep(MethodCallExpr call, StepKeyword keyword) {
+        Optional<NodeList<Parameter>> parameters = call.getArgument(1).toLambdaExpr().map(LambdaExpr::getParameters);
+        StepBody body = new StepBody("the " + keyword.keyword() + " lambda", "", parameters);
+        MethodDocumentation documentation =
+                MethodDocumentation.ofLambda(commentAbove(call), parameters.orElseGet(NodeList::new));
+        addStep(keyword, call, Optional.of(call.getArgument(0)), body, documentation);
     }
 
     /** As in Cucumber, a parameter type is named after its method unless the annotation names it. */
@@ -76,21 +130,40 @@ final class SourceFileScan {
                 .flatMap(constants::valueOf)
                 .filter(value -> !value.isBlank())
                 .orElse(method.getNameAsString());
-        Optional<String> regex = AnnotationValues.member(annotation, "value").flatMap(constants::valueOf);
-        if (regex.isEmpty()) {
-            problems.add(new Problem(location, "Parameter type '" + name
-                    + "' cannot be read from the scanned sources, it was ignored"));
+        String description = MethodDocumentation.of(method, constants).description();
+        AnnotationValues.member(annotation, "value").flatMap(constants::valueOf).ifPresentOrElse(
+                regex -> addParameterType(location, name, regex, description),
+                () -> reportUnreadableParameterType(location, name));
+    }
+
+    /** A name that cannot be read is reported the way it is written in the call. */
+    private void addLambdaParameterType(MethodCallExpr call) {
+        SourceLocation location = locationOf(call);
+        Optional<String> name = constants.valueOf(call.getArgument(0));
+        if (name.isEmpty()) {
+            reportUnreadableParameterType(location, call.getArgument(0).toString());
             return;
         }
+        String description = MethodDocumentation.ofLambda(commentAbove(call), new NodeList<>()).description();
+        constants.valueOf(call.getArgument(1)).ifPresentOrElse(
+                regex -> addParameterType(location, name.get(), regex, description),
+                () -> reportUnreadableParameterType(location, name.get()));
+    }
+
+    private void addParameterType(SourceLocation location, String name, String regex, String description) {
         try {
-            Pattern.compile(regex.get());
+            Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
             problems.add(new Problem(location, "Parameter type '" + name
                     + "' has an invalid regular expression (" + e.getDescription() + "), it was ignored"));
             return;
         }
-        String description = MethodDocumentation.of(method, constants).description();
-        parameterTypes.add(new ParameterTypeDefinition(name, regex.get(), description, location));
+        parameterTypes.add(new ParameterTypeDefinition(name, regex, description, location));
+    }
+
+    private void reportUnreadableParameterType(SourceLocation location, String name) {
+        problems.add(new Problem(location, "Parameter type '" + name
+                + "' cannot be read from the scanned sources, it was ignored"));
     }
 
     private void checkStepDocParameterCount(MethodDeclaration method, MethodDocumentation documentation) {
@@ -102,65 +175,77 @@ final class SourceFileScan {
         }
     }
 
-    private void addStep(MethodDeclaration method, StepAnnotation annotation, MethodDocumentation documentation) {
-        SourceLocation location = locationOf(annotation.expression());
-        Optional<String> expression = AnnotationValues.member(annotation.expression(), "value")
-                .flatMap(constants::valueOf);
-        if (expression.isEmpty()) {
-            problems.add(new Problem(location, "Step expression of method " + method.getNameAsString()
+    /**
+     * @param declaration what declares the step: its annotation, or the cucumber-java8 call
+     * @param expression  the step text as written there, empty when the annotation gives none
+     */
+    private void addStep(StepKeyword keyword, Node declaration, Optional<Expression> expression, StepBody body,
+                         MethodDocumentation documentation) {
+        SourceLocation location = locationOf(declaration);
+        Optional<String> text = expression.flatMap(constants::valueOf);
+        if (text.isEmpty()) {
+            problems.add(new Problem(location, "Step expression of " + body.label()
                     + " cannot be read from the scanned sources, the step was skipped"));
             return;
         }
-        ExpressionSyntax syntax = StepExpressions.syntaxOf(expression.get());
-        List<String> expressionTypes = StepExpressions.parameterTypes(expression.get(), syntax);
-        checkArity(method, expression.get(), expressionTypes.size(), location);
+        ExpressionSyntax syntax = StepExpressions.syntaxOf(text.get());
+        List<String> expressionTypes = StepExpressions.parameterTypes(text.get(), syntax);
+        checkArity(body, text.get(), expressionTypes.size(), location);
 
         steps.add(new StepDefinition(
-                annotation.keyword().keyword(),
-                annotation.keyword().kind(),
-                expression.get(),
+                keyword.keyword(),
+                keyword.kind(),
+                text.get(),
                 syntax,
                 documentation.description(),
-                parameters(method.getParameters(), expressionTypes, documentation),
-                declaringClassOf(method),
-                method.getNameAsString(),
+                parameters(body.parameters().orElseGet(NodeList::new), expressionTypes, documentation),
+                enclosingTypeOf(declaration).map(SourceFileScan::nameOf).orElse(""),
+                body.methodName(),
                 location));
     }
 
     /** Cucumber accepts exactly one argument per expression parameter, plus an optional data table or doc string. */
-    private void checkArity(MethodDeclaration method, String expression, int expressionParameterCount,
-                            SourceLocation location) {
-        int methodParameterCount = method.getParameters().size();
-        boolean arityMatches = methodParameterCount == expressionParameterCount
-                || methodParameterCount == expressionParameterCount + 1;
+    private void checkArity(StepBody body, String expression, int expressionParameterCount, SourceLocation location) {
+        if (body.parameters().isEmpty()) {
+            return;
+        }
+        int bodyParameterCount = body.parameters().get().size();
+        boolean arityMatches = bodyParameterCount == expressionParameterCount
+                || bodyParameterCount == expressionParameterCount + 1;
         if (!arityMatches) {
             problems.add(new Problem(location, "Step \"" + expression + "\" has " + expressionParameterCount
-                    + " parameter(s) but method " + method.getNameAsString() + " takes " + methodParameterCount));
+                    + " parameter(s) but " + body.label() + " takes " + bodyParameterCount));
         }
     }
 
     /** One entry per argument: expression parameters first, then the data table or doc string if any. */
-    private static List<StepParameter> parameters(NodeList<Parameter> methodParameters, List<String> expressionTypes,
+    private static List<StepParameter> parameters(NodeList<Parameter> bodyParameters, List<String> expressionTypes,
                                                   MethodDocumentation documentation) {
-        int argumentCount = Math.max(methodParameters.size(), expressionTypes.size());
+        int argumentCount = Math.max(bodyParameters.size(), expressionTypes.size());
         List<StepParameter> parameters = new ArrayList<>();
         for (int i = 0; i < argumentCount; i++) {
-            Optional<Parameter> methodParameter = i < methodParameters.size()
-                    ? Optional.of(methodParameters.get(i))
+            Optional<Parameter> bodyParameter = i < bodyParameters.size()
+                    ? Optional.of(bodyParameters.get(i))
                     : Optional.empty();
             boolean fromExpression = i < expressionTypes.size();
             ParamDoc doc = documentation.parameter(i);
             parameters.add(new StepParameter(
-                    methodParameter.map(Parameter::getNameAsString).orElse(""),
-                    methodParameter.map(parameter -> parameter.getType().asString()).orElse(""),
+                    bodyParameter.map(Parameter::getNameAsString).orElse(""),
+                    bodyParameter.map(SourceFileScan::writtenTypeOf).orElse(""),
                     fromExpression
                             ? StepParameter.Source.EXPRESSION
-                            : docArgumentSource(methodParameter.orElseThrow().getType()),
+                            : docArgumentSource(bodyParameter.orElseThrow().getType()),
                     fromExpression ? expressionTypes.get(i) : "",
                     doc.description(),
                     doc.examples()));
         }
         return parameters;
+    }
+
+    /** A lambda parameter may have no type, or {@code var}: neither tells a reader anything. */
+    private static String writtenTypeOf(Parameter parameter) {
+        Type type = parameter.getType();
+        return type.isUnknownType() || type.isVarType() ? "" : type.asString();
     }
 
     /**
@@ -175,15 +260,26 @@ final class SourceFileScan {
         return docString ? StepParameter.Source.DOC_STRING : StepParameter.Source.DATA_TABLE;
     }
 
-    private static String declaringClassOf(MethodDeclaration method) {
-        Optional<Node> ancestor = method.getParentNode();
+    /** A comment written above a statement belongs to the statement, not to the call it is made of. */
+    private static Optional<Comment> commentAbove(MethodCallExpr call) {
+        return call.getComment().or(() -> call.getParentNode()
+                .filter(ExpressionStmt.class::isInstance)
+                .flatMap(Node::getComment));
+    }
+
+    private static Optional<TypeDeclaration<?>> enclosingTypeOf(Node node) {
+        Optional<Node> ancestor = node.getParentNode();
         while (ancestor.isPresent()) {
             if (ancestor.get() instanceof TypeDeclaration<?> type) {
-                return type.getFullyQualifiedName().orElse(type.getNameAsString());
+                return Optional.of(type);
             }
             ancestor = ancestor.get().getParentNode();
         }
-        return "";
+        return Optional.empty();
+    }
+
+    private static String nameOf(TypeDeclaration<?> type) {
+        return type.getFullyQualifiedName().orElse(type.getNameAsString());
     }
 
     private SourceLocation locationOf(Node node) {

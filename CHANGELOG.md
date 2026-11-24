@@ -18,6 +18,9 @@ break one of them; such a change is listed under "Changed" or "Removed". The cla
 - Parameter types declared with `@ParameterType` are documented: the catalog lists them, each
   `{type}` parameter shows what it matches, and `unused-step` matches them with their own
   regular expression instead of assuming they accept anything.
+- Steps written as lambdas (`cucumber-java8`) are found in the classes that implement `En` or
+  the interface of another language. The block comment above the call documents the step.
+  Parameter types declared with a `ParameterType(...)` call are read too.
 - Rule `undefined-step` reports the steps of feature files that no step definition implements.
   Like every rule it applies by default: leave it out of `rules` if your scenarios use steps
   defined outside the scanned sources.

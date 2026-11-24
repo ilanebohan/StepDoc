@@ -18,7 +18,8 @@ import io.cucumber.gherkin.GherkinDialects;
 
 /**
  * Knows the step annotations of cucumber-java for every Gherkin language, and the keyword
- * kind of each, without having cucumber-java on the classpath.
+ * kind of each, without having cucumber-java on the classpath. The step methods of
+ * cucumber-java8 follow the same names.
  *
  * <p>cucumber-java generates one package per Gherkin dialect and one annotation per step
  * keyword. This class applies the same naming rules to the dialects of the bundled Gherkin
@@ -46,6 +47,18 @@ final class GherkinKeywords {
     static Optional<StepKind> kindOf(String packageName, String annotationName) {
         Map<String, StepKind> kinds = KINDS_BY_PACKAGE.getOrDefault(packageName, Map.of());
         return Optional.ofNullable(kinds.get(Normalizer.normalize(annotationName, Normalizer.Form.NFC)));
+    }
+
+    /**
+     * The cucumber-java package of the language that the cucumber-java8 interface
+     * {@code interfaceName} declares steps in, or empty when there is no such interface.
+     * cucumber-java8 names its interfaces after those packages, capitalised: {@code En},
+     * {@code Zh_cn}, with methods named like the annotations of the package.
+     */
+    static Optional<String> packageOfLambdaInterface(String interfaceName) {
+        String packageName = STEP_PACKAGE_PREFIX + interfaceName.toLowerCase(Locale.ROOT);
+        boolean capitalised = Character.isUpperCase(interfaceName.codePointAt(0));
+        return capitalised && KINDS_BY_PACKAGE.containsKey(packageName) ? Optional.of(packageName) : Optional.empty();
     }
 
     private static Map<String, Map<String, StepKind>> kindsByPackage() {

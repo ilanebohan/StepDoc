@@ -59,7 +59,11 @@ public final class CatalogLinter {
                 .toList();
     }
 
-    /** Arguments the method does not declare are skipped: {@link LintRule#SOURCE_PROBLEM} already covers them. */
+    /**
+     * Arguments without a name are skipped, as nothing can document them: either the method
+     * does not declare them, which {@link LintRule#SOURCE_PROBLEM} reports, or the step is given
+     * a method reference where a lambda is expected.
+     */
     private static List<Violation> undocumentedParameters(StepCatalog catalog) {
         List<Violation> violations = new ArrayList<>();
         for (StepDefinition step : catalog.steps()) {

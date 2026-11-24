@@ -48,8 +48,15 @@ What follows from it:
   on the classpath: it rebuilds their names from the dialects of the Gherkin library, with the
   naming rules of the cucumber-java code generator. `GherkinKeywordsTest` compares the result
   with every annotation of the real cucumber-java jar.
-- A step whose expression is a constant (`@When(Steps.ADD)`) cannot be resolved: it is skipped
-  and reported as a `Problem`. String literals, text blocks and their concatenation are read.
+- A step text is read from string literals, text blocks, their concatenation, and constants
+  declared in the scanned sources (`StringConstants`). Any other value cannot be known: the
+  step is skipped and reported as a `Problem`.
+- A step written as a lambda (`cucumber-java8`) is a call to a keyword method, made by a class
+  that lists a language interface of `io.cucumber.java8` in its `implements` clause
+  (`LambdaGlueTypes`). Those methods are named like the annotations of cucumber-java, which
+  was checked once against the cucumber-java8 8.1.0 jar: there is no test for it, because
+  cucumber-java8 is not a dependency. A lambda has no Javadoc, so the block comment above the
+  call documents the step.
 - `@StepDoc` is read from the syntax tree, which is why it can be source-retained.
 - StepDoc itself targets Java 17, but its parser accepts sources written for newer versions.
 
@@ -155,7 +162,10 @@ because the obvious fix usually breaks a design decision above.
 
 - A keyword that the bundled Gherkin library does not know (added by a newer Cucumber) has the
   kind `StepKind.OTHER` when imported by name, and is not detected behind a wildcard import.
-- Expressions defined by a constant are skipped and reported.
-- Steps written as lambdas (`cucumber-java8`) are not detected.
-- Custom parameter types (`{color}`) are shown by name; their `@ParameterType` definition is not
-  read. The `unused-step` rule therefore assumes such a parameter matches anything.
+- A step text or a parameter type defined by a constant declared outside the scanned sources is
+  skipped and reported.
+- Lambda steps are only found in a class that implements the cucumber-java8 interface itself:
+  an inherited interface would need the type hierarchy. A method reference given in place of
+  a lambda is not followed, so its parameters have no name.
+- A custom parameter type (`{color}`) that is not declared in the scanned sources is shown by
+  name, and the usage rules assume it matches anything.
