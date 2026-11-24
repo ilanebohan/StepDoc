@@ -16,7 +16,7 @@ renderers and the linter only consume it and never look at source files.
 | Module | Role | Depends on |
 |---|---|---|
 | `stepdoc-annotations` | The optional `@StepDoc` annotation, source-retained | nothing |
-| `stepdoc-core` | Parser, model, renderers, linter | JavaParser only |
+| `stepdoc-core` | Parser, model, renderers, linter | JavaParser, Gherkin |
 | `stepdoc-maven-plugin` | Reads settings, calls core, reports to Maven | core, Maven API |
 
 Packages of `stepdoc-core` (under `com.exodius_software.stepdoc.core`):
@@ -36,9 +36,14 @@ Packages of `stepdoc-core` (under `com.exodius_software.stepdoc.core`):
 document a project that does not build and adds no dependency to the user's classpath.
 What follows from it:
 
-- A step annotation is recognised from the file's imports. Explicit imports and fully
-  qualified names work for every Gherkin language; a wildcard import (`io.cucumber.java.en.*`)
-  only resolves the five English keywords, because the content of a package is unknown.
+- A step annotation is recognised from the file's imports. An annotation imported by name or
+  written fully qualified is a step when its package is a cucumber-java language package
+  (`io.cucumber.java.<language>`). Behind a wildcard import the content of the package is
+  unknown, so only the keywords listed by `GherkinKeywords` are accepted.
+- `GherkinKeywords` knows the step annotations of all Gherkin languages without cucumber-java
+  on the classpath: it rebuilds their names from the dialects of the Gherkin library, with the
+  naming rules of the cucumber-java code generator. `GherkinKeywordsTest` compares the result
+  with every annotation of the real cucumber-java jar.
 - A step whose expression is a constant (`@When(Steps.ADD)`) cannot be resolved: it is skipped
   and reported as a `Problem`. String literals, text blocks and their concatenation are read.
 - `@StepDoc` is read from the syntax tree, which is why it can be source-retained.
@@ -118,14 +123,20 @@ Each recipe lists every place a change must touch. If you find one that is missi
 Start with a failing test in `StepDefinitionParserTest`: a few lines of Java source in a text
 block, and assertions on the resulting catalog. Then change the parser.
 
+**Upgrade Cucumber**
+
+1. Raise `gherkin.version` and `cucumber-java.version` together in the parent `pom.xml`.
+2. Run the tests. If `GherkinKeywordsTest` fails, cucumber-java names annotations differently
+   or has a keyword the Gherkin library lacks: the failure lists them. Align `GherkinKeywords`
+   with the code generator of cucumber-java (`GenerateI18n` in the cucumber-jvm repository).
+
 ## Known limitations
 
 These are known and accepted for now. Do not "fix" one in passing: each needs its own issue,
 because the obvious fix usually breaks a design decision above.
 
-- Keywords from non-English packages (`io.cucumber.java.de.Wenn`) are kept as written but
-  have the kind `StepKind.OTHER`: there is no keyword translation table.
-- Non-English keywords behind a wildcard import are not detected.
+- A keyword that the bundled Gherkin library does not know (added by a newer Cucumber) has the
+  kind `StepKind.OTHER` when imported by name, and is not detected behind a wildcard import.
 - Expressions defined by a constant are skipped and reported.
 - Steps written as lambdas (`cucumber-java8`) are not detected.
 - Custom parameter types (`{color}`) are shown by name; their `@ParameterType` definition is not read.
