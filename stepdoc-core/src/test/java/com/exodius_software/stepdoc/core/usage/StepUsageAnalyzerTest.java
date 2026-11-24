@@ -1,6 +1,7 @@
 package com.exodius_software.stepdoc.core.usage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +16,7 @@ import com.exodius_software.stepdoc.core.model.SourceLocation;
 import com.exodius_software.stepdoc.core.model.StepCatalog;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.parser.StepDefinitionParser;
+import com.exodius_software.stepdoc.core.usage.StepUsage.UndefinedStep;
 
 class StepUsageAnalyzerTest {
 
@@ -206,6 +208,54 @@ class StepUsageAnalyzerTest {
                     .startsWith("Step \"I add {int books\" cannot be matched against feature files: ")
                     .doesNotContain("\n");
         });
+    }
+
+    @Test
+    void reportsEachFeatureStepNoDefinitionImplementsOnceWhereItFirstAppears() throws IOException {
+        write(features, "cart.feature", """
+                Feature: Cart
+                  Background:
+                    Given an empty cart
+
+                  Scenario: Coupon
+                    When I apply the coupon "WELCOME"
+                    Then the total is 20 euros
+
+                  Scenario Outline: Gift
+                    When I wrap <count> books
+                    And I apply the coupon "WELCOME"
+
+                    Examples:
+                      | count |
+                      | 1     |
+                      | 2     |
+                """);
+
+        StepUsage usage = analyze(CART_STEPS, features);
+
+        assertThat(usage.undefinedSteps())
+                .extracting(UndefinedStep::text, step -> step.location().toString())
+                .containsExactly(
+                        tuple("I apply the coupon \"WELCOME\"", "cart.feature:6"),
+                        tuple("I wrap 1 books", "cart.feature:10"),
+                        tuple("I wrap 2 books", "cart.feature:10"));
+    }
+
+    @Test
+    void findsTheStepsOfARuleAndTheirLines() throws IOException {
+        write(features, "cart.feature", """
+                Feature: Cart
+                  Rule: Coupons apply once
+                    Background:
+                      Given an empty cart
+
+                    Example: Twice
+                      When I apply two coupons
+                """);
+
+        assertThat(analyze(CART_STEPS, features).undefinedSteps())
+                .extracting(UndefinedStep::text, step -> step.location().line())
+                .containsExactly(tuple("I apply two coupons", 7));
     }
 
     @Test

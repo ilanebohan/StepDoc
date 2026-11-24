@@ -17,3 +17,7 @@ Feature: Cart
       """
       Thank you for your order.
       """
+
+  Scenario: Using a coupon
+    When I apply the coupon "WELCOME"
+    Then the cart total is 9.99 euros

@@ -18,6 +18,7 @@ import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.model.StepKind;
 import com.exodius_software.stepdoc.core.model.StepParameter;
 import com.exodius_software.stepdoc.core.usage.StepUsage;
+import com.exodius_software.stepdoc.core.usage.StepUsage.UndefinedStep;
 
 class CatalogLinterTest {
 
@@ -79,7 +80,7 @@ class CatalogLinterTest {
     void reportsTheStepsThatFeatureFilesDoNotUse() {
         StepDefinition used = step("an empty cart", "Starts empty", 3);
         StepDefinition unused = step("the cart is empty", "Checks the cart", 8);
-        StepUsage usage = new StepUsage(List.of(unused), List.of(), "");
+        StepUsage usage = new StepUsage(List.of(unused), List.of(), List.of(), "");
 
         assertThat(CatalogLinter.lint(catalog(used, unused), usage, ALL_RULES)).extracting(Violation::toString)
                 .containsExactly("[unused-step] steps/CartSteps.java:8 "
@@ -87,8 +88,18 @@ class CatalogLinterTest {
     }
 
     @Test
-    void turnsProblemsFoundInFeatureFilesIntoViolations() {
+    void reportsTheFeatureStepsThatNoDefinitionImplements() {
         StepUsage usage = new StepUsage(List.of(),
+                List.of(new UndefinedStep("I apply a coupon", new SourceLocation("cart.feature", 6))),
+                List.of(), "");
+
+        assertThat(CatalogLinter.lint(catalog(), usage, ALL_RULES)).extracting(Violation::toString)
+                .containsExactly("[undefined-step] cart.feature:6 Step \"I apply a coupon\" has no step definition");
+    }
+
+    @Test
+    void turnsProblemsFoundInFeatureFilesIntoViolations() {
+        StepUsage usage = new StepUsage(List.of(), List.of(),
                 List.of(new Problem(new SourceLocation("cart.feature", 4), "Feature file could not be parsed")),
                 "some feature files could not be parsed");
 
@@ -125,7 +136,7 @@ class CatalogLinterTest {
         assertThatThrownBy(() -> LintRule.fromId("missing-example"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unknown rule 'missing-example', expected one of: "
-                        + "undocumented-step, undocumented-parameter, duplicate-step, unused-step, source-problem");
+                        + "undocumented-step, undocumented-parameter, duplicate-step, unused-step, undefined-step, source-problem");
     }
 
     private static StepCatalog catalog(StepDefinition... steps) {

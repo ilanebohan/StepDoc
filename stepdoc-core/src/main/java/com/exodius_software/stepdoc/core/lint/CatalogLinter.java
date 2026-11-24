@@ -46,6 +46,7 @@ public final class CatalogLinter {
             case UNDOCUMENTED_PARAMETER -> undocumentedParameters(catalog);
             case DUPLICATE_STEP -> duplicateSteps(catalog);
             case UNUSED_STEP -> unusedSteps(usage);
+            case UNDEFINED_STEP -> undefinedSteps(usage);
             case SOURCE_PROBLEM -> sourceProblems(catalog, usage);
         };
     }
@@ -90,6 +91,13 @@ public final class CatalogLinter {
         return usage.unusedSteps().stream()
                 .map(step -> new Violation(LintRule.UNUSED_STEP, step.location(),
                         "Step " + quoted(step) + " is not used by any feature file"))
+                .toList();
+    }
+
+    private static List<Violation> undefinedSteps(StepUsage usage) {
+        return usage.undefinedSteps().stream()
+                .map(step -> new Violation(LintRule.UNDEFINED_STEP, step.location(),
+                        "Step \"" + step.text() + "\" has no step definition"))
                 .toList();
     }
 

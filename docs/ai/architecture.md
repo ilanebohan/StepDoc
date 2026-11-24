@@ -13,7 +13,8 @@ make the most common changes. This is not a file tour: read the code for that.
 
 Everything flows through the model. The parser is the only producer of a `StepCatalog`;
 renderers and the linter only consume it and never look at source files. Feature files are a
-second input, read only to tell which steps are used: `usage` compares them with the catalog.
+second input, read only to tell which steps are used and which are defined: `usage` compares
+them with the catalog.
 
 | Module | Role | Depends on |
 |---|---|---|
@@ -64,6 +65,11 @@ values), expressions are matched by Cucumber's own expression library, and numbe
 the language of each feature file. When it cannot know, it stays silent: no feature file found
 or a feature file that does not parse skips the rule with a warning, an expression that cannot
 be matched becomes a `Problem`, and a custom parameter type is assumed to match anything.
+
+The same comparison gives the reverse answer, the feature steps no definition implements,
+under the same conditions. It has one blind spot the first does not: a definition the parser
+never saw (other module, dependency, skipped with a `Problem`) makes its steps look undefined.
+That cannot be detected from sources, so it is documented and the rule can be left out.
 
 **Deterministic output.** Files are visited in relative path order, steps keep their source
 order, groups use insertion-ordered or enum-ordered maps, and no document contains a date or a
@@ -153,5 +159,3 @@ because the obvious fix usually breaks a design decision above.
 - Steps written as lambdas (`cucumber-java8`) are not detected.
 - Custom parameter types (`{color}`) are shown by name; their `@ParameterType` definition is not
   read. The `unused-step` rule therefore assumes such a parameter matches anything.
-- A step of a feature file that matches no step definition is not reported: Cucumber already
-  does it at run time.

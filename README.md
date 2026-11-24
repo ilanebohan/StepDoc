@@ -68,7 +68,7 @@ To use `@StepDoc`, add the annotations too. It only exists in your sources, so t
 
 ```shell
 mvn stepdoc:generate   # writes target/stepdoc/steps.md and steps.html
-mvn stepdoc:check      # fails the build if a step is undocumented, duplicated or unused
+mvn stepdoc:check      # fails the build if a step is undocumented, duplicated, unused or undefined
 ```
 
 To run both on every build, add an execution to the plugin:
@@ -117,7 +117,7 @@ The [user guide](docs/user-guide.md) explains each setting, each rule and each m
 | Setting | Default | |
 |---|---|---|
 | `rules` | all | Rules to apply, comma-separated (see below) |
-| `featureDirectories` | `src/test/resources` | Where the `.feature` files are, for the `unused-step` rule. Several directories can be given, comma-separated; they are searched recursively |
+| `featureDirectories` | `src/test/resources` | Where the `.feature` files are, for the `unused-step` and `undefined-step` rules. Several directories can be given, comma-separated; they are searched recursively |
 | `failOnViolation` | `true` | `false` only prints warnings |
 
 | Rule | Fails when |
@@ -126,12 +126,13 @@ The [user guide](docs/user-guide.md) explains each setting, each rule and each m
 | `undocumented-parameter` | A parameter has no description |
 | `duplicate-step` | Two steps have the same text, which Cucumber refuses to run |
 | `unused-step` | No `.feature` file uses the step |
+| `undefined-step` | A step of a `.feature` file has no step definition |
 | `source-problem` | A file cannot be read, or a step and its method disagree on parameters |
 
-`unused-step` matches the steps of your feature files against your step definitions the way
-Cucumber does: any Gherkin language, scenario outlines with their example values, Cucumber
-Expressions and regular expressions. If it finds no feature file, or cannot parse one, it
-prints a warning and reports nothing rather than calling used steps unused.
+`unused-step` and `undefined-step` match the steps of your feature files against your step
+definitions the way Cucumber does: any Gherkin language, scenario outlines with their example
+values, Cucumber Expressions and regular expressions. If they find no feature file, or cannot
+parse one, they print a warning and report nothing rather than accusing the wrong step.
 
 ## Try it
 
@@ -142,7 +143,7 @@ at the root, run from that folder:
 ../../mvnw stepdoc:generate stepdoc:check
 ```
 
-`check` fails on purpose: the example contains undocumented, unused and broken steps.
+`check` fails on purpose: the example contains undocumented, unused, undefined and broken steps.
 
 ## Contributing
 
