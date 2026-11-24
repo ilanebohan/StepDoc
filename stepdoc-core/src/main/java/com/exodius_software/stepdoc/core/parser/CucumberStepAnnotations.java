@@ -1,9 +1,10 @@
 package com.exodius_software.stepdoc.core.parser;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.github.javaparser.ast.CompilationUnit;
@@ -16,10 +17,10 @@ import com.exodius_software.stepdoc.core.model.StepKind;
 /**
  * Tells, from a file's imports alone, which annotations are Cucumber step annotations.
  *
- * <p>Explicit imports and fully qualified names work for every Gherkin language.
- * Wildcard imports only resolve the English keywords: the content of a package is
- * unknown without a classpath, and guessing would turn {@code @SuppressWarnings("x")}
- * or a hook into a step.
+ * <p>An annotation imported by name or written fully qualified is a step as soon as its
+ * package is a cucumber-java language package. Behind a wildcard import the content of the
+ * package is unknown without a classpath, so only the keywords {@link GherkinKeywords} knows
+ * are accepted: guessing would turn {@code @SuppressWarnings("x")} or a hook into a step.
  */
 final class CucumberStepAnnotations {
 
@@ -27,33 +28,31 @@ final class CucumberStepAnnotations {
     }
 
     private static final Pattern STEP_PACKAGE = Pattern.compile("io\\.cucumber\\.java\\.[a-z_]+");
-    private static final String ENGLISH_PACKAGE = "io.cucumber.java.en";
-    private static final Set<String> ENGLISH_KEYWORDS = Set.of("Given", "When", "Then", "And", "But");
 
     private final Map<String, String> packageBySimpleName;
-    private final boolean englishWildcardImported;
+    private final List<String> wildcardStepPackages;
 
-    private CucumberStepAnnotations(Map<String, String> packageBySimpleName, boolean englishWildcardImported) {
+    private CucumberStepAnnotations(Map<String, String> packageBySimpleName, List<String> wildcardStepPackages) {
         this.packageBySimpleName = packageBySimpleName;
-        this.englishWildcardImported = englishWildcardImported;
+        this.wildcardStepPackages = wildcardStepPackages;
     }
 
     static CucumberStepAnnotations of(CompilationUnit unit) {
         Map<String, String> packageBySimpleName = new HashMap<>();
-        boolean englishWildcardImported = false;
+        List<String> wildcardStepPackages = new ArrayList<>();
         for (ImportDeclaration declaration : unit.getImports()) {
             if (declaration.isStatic()) {
                 continue;
             }
             Name name = declaration.getName();
-            if (declaration.isAsterisk()) {
-                englishWildcardImported |= ENGLISH_PACKAGE.equals(name.asString());
-            } else {
+            if (!declaration.isAsterisk()) {
                 name.getQualifier().ifPresent(qualifier ->
                         packageBySimpleName.put(name.getIdentifier(), qualifier.asString()));
+            } else if (isStepPackage(name.asString())) {
+                wildcardStepPackages.add(name.asString());
             }
         }
-        return new CucumberStepAnnotations(packageBySimpleName, englishWildcardImported);
+        return new CucumberStepAnnotations(packageBySimpleName, wildcardStepPackages);
     }
 
     /** The step keyword carried by {@code annotation}, or empty when it is not a step annotation. */
@@ -63,30 +62,30 @@ final class CucumberStepAnnotations {
         return name.getQualifier()
                 .map(Name::asString)
                 .or(() -> importedPackageOf(simpleName))
-                .filter(pkg -> STEP_PACKAGE.matcher(pkg).matches())
+                .filter(CucumberStepAnnotations::isStepPackage)
                 .map(pkg -> new StepKeyword(simpleName, kindOf(pkg, simpleName)));
     }
 
+    /** As in Java, an import by name wins over a wildcard import. */
     private Optional<String> importedPackageOf(String simpleName) {
         String explicitPackage = packageBySimpleName.get(simpleName);
         if (explicitPackage != null) {
             return Optional.of(explicitPackage);
         }
-        boolean fromEnglishWildcard = englishWildcardImported && ENGLISH_KEYWORDS.contains(simpleName);
-        return fromEnglishWildcard ? Optional.of(ENGLISH_PACKAGE) : Optional.empty();
+        return wildcardStepPackages.stream()
+                .filter(pkg -> GherkinKeywords.kindOf(pkg, simpleName).isPresent())
+                .findFirst();
     }
 
+    /**
+     * A named annotation that the bundled Gherkin library does not know (a keyword added by a
+     * newer Cucumber, for instance) is still a step: it is listed, with {@link StepKind#OTHER}.
+     */
     private static StepKind kindOf(String pkg, String keyword) {
-        if (!ENGLISH_PACKAGE.equals(pkg)) {
-            return StepKind.OTHER;
-        }
-        return switch (keyword) {
-            case "Given" -> StepKind.GIVEN;
-            case "When" -> StepKind.WHEN;
-            case "Then" -> StepKind.THEN;
-            case "And" -> StepKind.AND;
-            case "But" -> StepKind.BUT;
-            default -> StepKind.OTHER;
-        };
+        return GherkinKeywords.kindOf(pkg, keyword).orElse(StepKind.OTHER);
+    }
+
+    private static boolean isStepPackage(String packageName) {
+        return STEP_PACKAGE.matcher(packageName).matches();
     }
 }

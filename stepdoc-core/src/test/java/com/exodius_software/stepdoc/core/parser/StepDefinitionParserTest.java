@@ -120,7 +120,7 @@ class StepDefinitionParserTest {
         }
 
         @Test
-        void keepsANonEnglishKeywordAsWrittenWithoutGuessingItsKind() {
+        void classifiesANonEnglishKeywordAndKeepsItAsWritten() {
             StepDefinition step = onlyStep("""
                     import io.cucumber.java.de.Wenn;
 
@@ -130,6 +130,54 @@ class StepDefinitionParserTest {
                     """);
 
             assertThat(step.keyword()).isEqualTo("Wenn");
+            assertThat(step.kind()).isEqualTo(StepKind.WHEN);
+        }
+
+        @Test
+        void resolvesTheKeywordsOfEveryWildcardImportedLanguage() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.de.*;
+                    import io.cucumber.java.en.*;
+
+                    class CartSteps {
+                        @Gegebensei("an empty cart") void emptyCart() {}
+                        @When("I add a book") void addBook() {}
+                        @Dann("the cart has one book") void oneBook() {}
+                    }
+                    """);
+
+            assertThat(catalog.steps())
+                    .extracting(StepDefinition::keyword, StepDefinition::kind)
+                    .containsExactly(
+                            tuple("Gegebensei", StepKind.GIVEN),
+                            tuple("When", StepKind.WHEN),
+                            tuple("Dann", StepKind.THEN));
+        }
+
+        @Test
+        void doesNotGuessAStepBehindAWildcardImportOfAnotherLanguage() {
+            StepCatalog catalog = parse("""
+                    import io.cucumber.java.de.*;
+
+                    class CartSteps {
+                        @When("I add a book") void addBook() {}
+                    }
+                    """);
+
+            assertThat(catalog.steps()).isEmpty();
+        }
+
+        @Test
+        void listsANamedStepAnnotationUnknownToGherkinWithoutGuessingItsKind() {
+            StepDefinition step = onlyStep("""
+                    import io.cucumber.java.en.Whenever;
+
+                    class CartSteps {
+                        @Whenever("I add a book") void addBook() {}
+                    }
+                    """);
+
+            assertThat(step.keyword()).isEqualTo("Whenever");
             assertThat(step.kind()).isEqualTo(StepKind.OTHER);
         }
 

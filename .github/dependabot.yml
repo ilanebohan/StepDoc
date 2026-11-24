@@ -8,6 +8,9 @@ updates:
     groups:
       maven-plugins:
         patterns: ["org.apache.maven.plugins:*"]
+      # gherkin and cucumber-java must move together: a test checks one against the other.
+      cucumber:
+        patterns: ["io.cucumber:*"]
 
   - package-ecosystem: github-actions
     directory: /

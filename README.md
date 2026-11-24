@@ -10,7 +10,8 @@ that every step is documented.
 ## How it works
 
 1. StepDoc reads your step definition sources (`src/test/java` by default).
-   Nothing is compiled and no test is run.
+   Nothing is compiled and no test is run. Step annotations of every Gherkin language are
+   recognised (`io.cucumber.java.en`, `io.cucumber.java.de`, ...).
 2. Each step is described by its Javadoc. `@StepDoc` is optional, for example values.
 3. `stepdoc:generate` writes the catalog in Markdown and HTML.
    `stepdoc:check` fails the build when a step is not documented.
