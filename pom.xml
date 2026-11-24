@@ -163,6 +163,10 @@
                             <arg>-Xlint:all</arg>
                             <arg>-Werror</arg>
                         </compilerArgs>
+                        <!-- StepDoc uses no annotation processor. Up to JDK 22, javac runs any processor
+                             found in a dependency (Sisu, behind the Maven API) and then warns about the
+                             annotations nobody claimed; JDK 23 and later do not. Same build everywhere. -->
+                        <proc>none</proc>
                     </configuration>
                 </plugin>
                 <plugin>
