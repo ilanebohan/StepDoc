@@ -6,17 +6,19 @@ make the most common changes. This is not a file tour: read the code for that.
 ## The pipeline
 
 ```
-.java sources --> parser --> StepCatalog (steps + problems) --+--> render --> Markdown / HTML
-                                                              +--> lint ----> violations
+.java sources ----> parser --> StepCatalog --+--> render --> Markdown / HTML
+                                             +--> lint ----> violations
+.feature files ---> usage ---> StepUsage ----------^
 ```
 
 Everything flows through the model. The parser is the only producer of a `StepCatalog`;
-renderers and the linter only consume it and never look at source files.
+renderers and the linter only consume it and never look at source files. Feature files are a
+second input, read only to tell which steps are used: `usage` compares them with the catalog.
 
 | Module | Role | Depends on |
 |---|---|---|
 | `stepdoc-annotations` | The optional `@StepDoc` annotation, source-retained | nothing |
-| `stepdoc-core` | Parser, model, renderers, linter | JavaParser, Gherkin |
+| `stepdoc-core` | Parser, model, renderers, usage, linter | JavaParser, Gherkin, Cucumber Expressions |
 | `stepdoc-maven-plugin` | Reads settings, calls core, reports to Maven | core, Maven API |
 
 Packages of `stepdoc-core` (under `com.exodius_software.stepdoc.core`):
@@ -26,9 +28,10 @@ Packages of `stepdoc-core` (under `com.exodius_software.stepdoc.core`):
 | `model` | Immutable records: the contract between the parser and its consumers | all of it |
 | `parser` | Source scanning with JavaParser | `StepDefinitionParser` |
 | `render` | Layout decisions and the output formats | `OutputFormat`, `RenderOptions`, `GroupBy`, `CatalogRenderer` |
+| `usage` | Feature file reading, matching of steps and step definitions | `StepUsageAnalyzer`, `StepUsage` |
 | `lint` | Documentation rules | `CatalogLinter`, `LintRule`, `Violation` |
 | `util` | Shared helpers | `EnumNames` (internal, public for technical reasons) |
-| (root) | `DocumentationGenerator`: scan, then write one file per format | itself |
+| (root) | `DocumentationGenerator` and `DocumentationChecker`: what a build tool calls | themselves |
 
 ## Design decisions
 
@@ -53,6 +56,14 @@ What follows from it:
 read, a step and a method that disagree on parameters: each becomes a `Problem` in the catalog
 and the scan continues. One broken file must never hide every other step. Each consumer then
 decides what a problem means: a warning for `generate`, a violation for `check`.
+
+**Never call a used step unused.** Reporting an unused step is an accusation, and a wrong one
+makes users turn the rule off. So `usage` answers the way Cucumber would: steps come from the
+pickles of the Gherkin library (backgrounds included, outline placeholders replaced by example
+values), expressions are matched by Cucumber's own expression library, and numbers are read in
+the language of each feature file. When it cannot know, it stays silent: no feature file found
+or a feature file that does not parse skips the rule with a warning, an expression that cannot
+be matched becomes a `Problem`, and a custom parameter type is assumed to match anything.
 
 **Deterministic output.** Files are visited in relative path order, steps keep their source
 order, groups use insertion-ordered or enum-ordered maps, and no document contains a date or a
@@ -93,6 +104,7 @@ Each recipe lists every place a change must touch. If you find one that is missi
 
 1. Add the constant to `LintRule`, with a Javadoc line saying what it reports.
 2. The build now fails in `CatalogLinter.check`: implement the rule there as a small method.
+   A rule that needs the feature files takes its facts from `StepUsage`, never from the files.
 3. Test it in `CatalogLinterTest`, and update the test that lists the valid rule ids.
 4. Document it: rule table in `README.md`, Javadoc of `rules` in `CheckMojo`.
 
@@ -139,5 +151,7 @@ because the obvious fix usually breaks a design decision above.
   kind `StepKind.OTHER` when imported by name, and is not detected behind a wildcard import.
 - Expressions defined by a constant are skipped and reported.
 - Steps written as lambdas (`cucumber-java8`) are not detected.
-- Custom parameter types (`{color}`) are shown by name; their `@ParameterType` definition is not read.
-- Steps are not matched against `.feature` files, so unused steps are not reported.
+- Custom parameter types (`{color}`) are shown by name; their `@ParameterType` definition is not
+  read. The `unused-step` rule therefore assumes such a parameter matches anything.
+- A step of a feature file that matches no step definition is not reported: Cucumber already
+  does it at run time.
