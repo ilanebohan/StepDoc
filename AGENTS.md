@@ -50,7 +50,9 @@ Each of these is a design decision. Breaking one is a bug, even if the build is 
   Never push to `main` or `develop`, never rewrite history that is already pushed.
 - **The human is the author.** The person who submits your work is accountable for every line.
   Make their review easy: small diffs, reasons for your choices, a list of assumptions.
-  Do not add AI co-author trailers or "generated with" lines to commits and pull requests.
+- **AI assistance is declared, once.** It goes in the "AI assistance" section of the pull
+  request, truthfully: which tool, and what it did. Commits carry no AI co-author trailer and
+  no "generated with" line.
 
 ## Guides
 

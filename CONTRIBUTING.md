@@ -93,10 +93,13 @@ you would use any other tool. One principle holds in every case: **you own what 
   or comments that were generated in bulk and not reviewed by their author will be closed.
 - **You speak for yourself.** Using an assistant to polish your English is fine. Letting it
   argue with reviewers in your place is not.
+- **You say so.** Declare AI assistance in the "AI assistance" section of the pull request:
+  which tools, and what they did (code, tests, documentation, review). "None" is a valid
+  answer; leaving the section empty or untrue is not.
 
-You do not have to label AI-assisted work, and commits carry no AI co-author trailer: you are
-accountable for the change either way. If a maintainer asks how a change was produced, answer
-honestly.
+The declaration is not a mark against your work: it tells reviewers where to look harder.
+It lives in the pull request only. Commits carry no AI co-author trailer, because you are the
+author and you are accountable for the change either way.
 
 ### Context for AI agents
 

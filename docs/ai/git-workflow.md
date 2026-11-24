@@ -51,13 +51,18 @@ Rules:
   debug output, nothing under `target/`, no IDE file, no secret.
 - Run `./mvnw verify` before the last commit of a branch.
 - The human is the author. Do not add `Co-Authored-By` trailers for AI tools, session links or
-  "generated with" lines, and do not change the Git identity.
+  "generated with" lines to commits, and do not change the Git identity. AI assistance is
+  declared in the pull request instead (see below).
 
 ## Pull requests
 
 - Target `develop`. The only pull request ever opened against `main` is the release, by the maintainer.
 - Title in the commit format. Fill in the template of `.github/pull_request_template.md`:
   what changes and why, the linked issue (`Closes #42`), and the checklist, ticked honestly.
+- **Fill in the "AI assistance" section truthfully.** If you wrote or drafted any part of the
+  pull request, it is AI-assisted: name yourself (tool and model if you know them) and say what
+  you did (code, tests, documentation, review). Never write "None" for your own work, and never
+  drop the section. The project requires this declaration from every contributor.
 - Add what a reviewer cannot see in the diff: how you verified the change, the assumptions you
   made, what you left out.
 - One topic per pull request. Small ones get reviewed; large ones get postponed.

@@ -26,6 +26,7 @@ agent, or by you. The standard is the same in all three cases.
 - A behavior change has no test, or its test would pass without the change.
 - Existing behavior or a public type changes without being announced as breaking.
 - Code that the contributor may not have the right to submit under the MIT License.
+- The "AI assistance" section of the pull request is missing or left empty.
 
 **Should fix**: merge only with a good reason.
 
