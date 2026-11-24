@@ -1,0 +1,32 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: A step definition, the plugin configuration and the command you ran. The smaller the better.
+      render: java
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Build output
+      description: The relevant part of the Maven output.
+      render: shell
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: StepDoc 0.1.0, Java 21, Maven 3.9.9, Cucumber 7.20
+    validations:
+      required: true
