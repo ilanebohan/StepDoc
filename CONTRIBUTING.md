@@ -94,10 +94,12 @@ you would use any other tool. One principle holds in every case: **you own what 
 - **You speak for yourself.** Using an assistant to polish your English is fine. Letting it
   argue with reviewers in your place is not.
 - **You say so.** Declare AI assistance in the "AI assistance" section of the pull request:
-  which tools, and what they did (code, tests, documentation, review). "None" is a valid
-  answer; leaving the section empty or untrue is not.
+  which tools, what they did (code, tests, documentation, review), and a summary written by
+  the assistant of what it changed and what the change is for, in a few lines. "None" is a
+  valid answer; leaving the section empty or untrue is not.
 
-The declaration is not a mark against your work: it tells reviewers where to look harder.
+The declaration is not a mark against your work: it tells reviewers where to look harder, and
+the assistant's summary lets them compare what it believes it did with what the diff shows.
 It lives in the pull request only. Commits carry no AI co-author trailer, because you are the
 author and you are accountable for the change either way.
 

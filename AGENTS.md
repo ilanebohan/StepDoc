@@ -51,8 +51,8 @@ Each of these is a design decision. Breaking one is a bug, even if the build is 
 - **The human is the author.** The person who submits your work is accountable for every line.
   Make their review easy: small diffs, reasons for your choices, a list of assumptions.
 - **AI assistance is declared, once.** It goes in the "AI assistance" section of the pull
-  request, truthfully: which tool, and what it did. Commits carry no AI co-author trailer and
-  no "generated with" line.
+  request, truthfully: which tool, what it did, and your own summary of the changes and their
+  goal. Commits carry no AI co-author trailer and no "generated with" line.
 
 ## Guides
 

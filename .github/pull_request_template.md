@@ -7,8 +7,9 @@ Closes #
 ## AI assistance
 
 <!--
-Required. Did AI tools help with this pull request? Name them and say what they did
-(code, tests, documentation, review). Write "None" if you used none.
+Required. Write "None" if no AI tool helped with this pull request. Otherwise:
+- name the tools and say what they did (code, tests, documentation, review);
+- have the assistant summarise, in a few lines, what it changed and what the change is for.
 -->
 
 ## Checklist
