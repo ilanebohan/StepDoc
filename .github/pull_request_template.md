@@ -10,3 +10,4 @@ Closes #
 - [ ] `./mvnw verify` passes locally
 - [ ] Behavior changes come with tests
 - [ ] The README is updated if users see the change
+- [ ] I have read every line of this pull request and can explain it, whether or not an AI tool helped write it

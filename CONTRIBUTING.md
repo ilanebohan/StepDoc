@@ -77,6 +77,43 @@ Keep the summary short and in the imperative; explain the *why* in the body if n
 3. Make sure the CI is green: **CI result** and **CodeQL** must pass.
 4. Keep your branch up to date with `develop`.
 
+## Using AI tools
+
+AI assistants are welcome here. Use them to explore the code, write, test or review, the way
+you would use any other tool. One principle holds in every case: **you own what you submit.**
+
+- **You are the author.** Whatever produced the first draft, you have read every line, you
+  understand it, and you can explain and defend it in review. "The AI wrote it" is never an answer.
+- **You verify.** Run `./mvnw verify`, read your own diff, and check that the tests really
+  test something. Generated code often looks right and is wrong.
+- **You answer for the license.** Only submit code you have the right to contribute under the
+  [MIT License](LICENSE). Do not paste code that an assistant reproduced from another project,
+  and do not give it proprietary code to adapt.
+- **You respect reviewers' time.** Keep pull requests small and focused. Pull requests, issues
+  or comments that were generated in bulk and not reviewed by their author will be closed.
+- **You speak for yourself.** Using an assistant to polish your English is fine. Letting it
+  argue with reviewers in your place is not.
+
+You do not have to label AI-assisted work, and commits carry no AI co-author trailer: you are
+accountable for the change either way. If a maintainer asks how a change was produced, answer
+honestly.
+
+### Context for AI agents
+
+The repository ships its own instructions for coding agents, so that they follow the same
+rules as everyone else:
+
+| File | Content |
+|---|---|
+| [`AGENTS.md`](AGENTS.md) | Entry point: commands, hard rules, how to work here. Read by most agents. |
+| [`docs/ai/`](docs/ai) | One guide per activity: analysis, development, testing, Git workflow, review, architecture. |
+| `CLAUDE.md`, `.github/copilot-instructions.md` | Thin adapters for tools that look for their own file. |
+
+If you use an agent, make sure it reads them, for example by starting with "analyze this issue
+following `docs/ai/analysis.md`". They are useful to human contributors too:
+[`docs/ai/architecture.md`](docs/ai/architecture.md) explains the design decisions.
+If one of these files is wrong or outdated, fix it in your pull request.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
