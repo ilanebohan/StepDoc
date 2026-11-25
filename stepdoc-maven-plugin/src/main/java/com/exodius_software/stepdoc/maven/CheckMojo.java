@@ -24,17 +24,18 @@ public class CheckMojo extends AbstractStepDocMojo {
 
     /**
      * Rules to apply, by id: {@code undocumented-step}, {@code undocumented-parameter},
-     * {@code duplicate-step}, {@code unused-step}, {@code undefined-step}, {@code source-problem}.
-     * Empty means all of them, so new rules apply without touching the configuration.
+     * {@code duplicate-step}, {@code unused-step}, {@code undefined-step}, {@code ambiguous-step},
+     * {@code source-problem}. Empty means all of them, so new rules apply without touching the
+     * configuration.
      */
     @Parameter(property = "stepdoc.rules")
     private List<String> rules;
 
     /**
      * Directories searched, recursively, for the {@code .feature} files that tell which steps
-     * are used and which have no step definition. Only read by the {@code unused-step} and
-     * {@code undefined-step} rules, which are skipped with a warning when they contain no
-     * feature file.
+     * are used, which have no step definition and which have several. Only read by the
+     * {@code unused-step}, {@code undefined-step} and {@code ambiguous-step} rules, which are
+     * skipped with a warning when they contain no feature file.
      */
     @Parameter(property = "stepdoc.featureDirectories", defaultValue = "${project.basedir}/src/test/resources")
     private List<File> featureDirectories;

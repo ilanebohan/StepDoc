@@ -66,16 +66,17 @@ class DocumentationCheckerTest {
         DocumentationChecker.Result result = check(ALL_RULES);
 
         assertThat(result.violations()).isEmpty();
-        assertThat(result.warnings()).hasSize(2);
+        assertThat(result.warnings()).hasSize(3);
         assertThat(result.warnings().get(0)).startsWith("Rule unused-step was skipped: no .feature file found in ");
         assertThat(result.warnings().get(1)).startsWith("Rule undefined-step was skipped: no .feature file found in ");
+        assertThat(result.warnings().get(2)).startsWith("Rule ambiguous-step was skipped: no .feature file found in ");
     }
 
     @Test
     void doesNotReadFeatureFilesWhenNoEnabledRuleNeedsThem() throws IOException {
         Files.writeString(features.resolve("broken.feature"), "This is not Gherkin");
         Set<LintRule> withoutFeatureRules =
-                EnumSet.complementOf(EnumSet.of(LintRule.UNUSED_STEP, LintRule.UNDEFINED_STEP));
+                EnumSet.complementOf(EnumSet.of(LintRule.UNUSED_STEP, LintRule.UNDEFINED_STEP, LintRule.AMBIGUOUS_STEP));
 
         DocumentationChecker.Result result = check(withoutFeatureRules);
 

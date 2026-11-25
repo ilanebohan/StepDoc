@@ -140,7 +140,7 @@ jobs:
         shell: bash
         run: |
           ../../mvnw -B -ntp stepdoc:check -Dstepdoc.failOnViolation=false | tee "$RUNNER_TEMP/check.log"
-          grep -q "6 violation(s), 8 step(s) checked against 6 rule(s)" "$RUNNER_TEMP/check.log"
+          grep -q "7 violation(s), 9 step(s) checked against 7 rule(s)" "$RUNNER_TEMP/check.log"
 
       # The plugin promises Maven 3.9 and newer, so the oldest one runs it for real.
       # The archive is checked against a pinned checksum, like the pinned actions.
@@ -156,7 +156,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/maven.tar.gz" -C "$RUNNER_TEMP"
           "$RUNNER_TEMP/apache-maven-3.9.0/bin/mvn" -B -ntp stepdoc:help stepdoc:generate stepdoc:check \
             -Dstepdoc.failOnViolation=false | tee "$RUNNER_TEMP/maven-3.9.0.log"
-          grep -q "6 violation(s), 8 step(s) checked against 6 rule(s)" "$RUNNER_TEMP/maven-3.9.0.log"
+          grep -q "7 violation(s), 9 step(s) checked against 7 rule(s)" "$RUNNER_TEMP/maven-3.9.0.log"
       - name: Upload the generated documentation
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

@@ -24,6 +24,8 @@ break one of them; such a change is listed under "Changed" or "Removed". The cla
 - Rule `undefined-step` reports the steps of feature files that no step definition implements.
   Like every rule it applies by default: leave it out of `rules` if your scenarios use steps
   defined outside the scanned sources.
+- Rule `ambiguous-step` reports the steps of feature files that several step definitions
+  match, which Cucumber refuses to run.
 
 ### Changed
 

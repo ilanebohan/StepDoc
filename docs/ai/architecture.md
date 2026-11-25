@@ -78,6 +78,10 @@ under the same conditions. It has one blind spot the first does not: a definitio
 never saw (other module, dependency, skipped with a `Problem`) makes its steps look undefined.
 That cannot be detected from sources, so it is documented and the rule can be left out.
 
+It also tells which feature steps several definitions match, which Cucumber refuses to run.
+Silence is stricter there: a match that rests on an assumed parameter type does not count,
+and definitions with the same text are left to `duplicate-step`.
+
 **Deterministic output.** Files are visited in relative path order, steps keep their source
 order, groups use insertion-ordered or enum-ordered maps, and no document contains a date or a
 machine-specific path. Generated documentation is meant to be committed or published and

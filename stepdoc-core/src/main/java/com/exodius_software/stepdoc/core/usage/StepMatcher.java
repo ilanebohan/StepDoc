@@ -54,6 +54,16 @@ final class StepMatcher {
                 .isPresent();
     }
 
+    /**
+     * Whether a match of {@code definition} rests on a guess: its text uses a parameter type
+     * the scanned sources do not declare, assumed to match anything. Only meaningful once
+     * {@link #matches} has been called for the same definition and step.
+     */
+    boolean assumesAParameterType(StepDefinition definition, FeatureStep step) {
+        Expressions expressions = expressionsByLanguage.get(step.language());
+        return expressions != null && expressions.usesAnAssumedType(definition.expression());
+    }
+
     /** The declared parameter types Cucumber itself would refuse, a name declared twice for instance. */
     List<Problem> parameterTypeProblems() {
         return new Expressions(Locale.ENGLISH.toLanguageTag(), parameterTypes).problems;
@@ -119,6 +129,11 @@ final class StepMatcher {
                 throw undefined; // already assumed and still rejected: do not loop forever
             }
             define(name, MATCHES_ANYTHING);
+        }
+
+        /** An assumed type is defined for good, so later expressions using it compile without a word. */
+        boolean usesAnAssumedType(String expression) {
+            return assumedTypes.stream().anyMatch(name -> expression.contains("{" + name + "}"));
         }
 
         private void define(String name, String regex) {
