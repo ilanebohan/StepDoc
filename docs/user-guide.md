@@ -279,8 +279,9 @@ It prefers saying nothing to being wrong:
 
 `undefined-step` can only know the step definitions StepDoc reads. A step implemented
 somewhere else (another module, a dependency), or by a step definition reported as
-a `source-problem`, looks undefined. Fix the source problems first; if your scenarios use
-steps defined outside `sourceDirectory`, leave `undefined-step` out of `rules`.
+a `source-problem`, looks undefined. Fix the source problems first. For steps kept in another
+module, add its sources with [`sourceDirectories`](#settings-shared-by-both-goals); for steps
+that come from a dependency, leave `undefined-step` out of `rules`.
 
 ### Run it on every build
 
@@ -315,6 +316,7 @@ On an existing project, the first `check` usually reports a lot. A way to get th
 | Setting | Default | |
 |---|---|---|
 | `sourceDirectory` | `src/test/java` | Where your step definitions are, searched recursively |
+| `sourceDirectories` | none | Several directories instead of one, comma-separated. When set, `sourceDirectory` is not used |
 | `encoding` | `project.build.sourceEncoding` | Encoding of your step definition sources and of `htmlStylesheet`. UTF-8 if the project sets none, on every machine |
 | `skip` | `false` | Skips StepDoc, for example with `-Dstepdoc.skip` |
 
@@ -323,13 +325,26 @@ On an existing project, the first `check` usually reports a lot. A way to get th
 Feature files do not use `encoding`. They follow the rule of Gherkin: UTF-8, unless the file
 starts with a comment such as `# encoding: iso-8859-1`.
 
-In a multi-module project, declare the plugin in each module that holds step definitions:
-StepDoc documents the sources of the module it runs in, not the steps that come from a
-dependency. If the feature files live in another module, point `featureDirectories` at it,
-for example `../acceptance-tests/src/test/resources`.
+In a multi-module project, declare the plugin in each module that holds step definitions.
+By default StepDoc documents the sources of the module it runs in. If the feature files live
+in another module, point `featureDirectories` at it, for example
+`../acceptance-tests/src/test/resources`.
 
-If `sourceDirectory` does not exist, StepDoc says so and does nothing.
+When a module also uses **steps kept in another module**, list both source directories.
+StepDoc then reads them as one set of sources: the catalog holds all their steps, a constant
+of one can be used by the other, and `undefined-step` knows every step.
 
+```xml
+<configuration>
+    <sourceDirectories>src/test/java,../shared-steps/src/test/java</sourceDirectories>
+</configuration>
+```
+
+A relative path starts from the directory of the module. A directory that does not exist is
+skipped with a warning. Steps that come from a dependency, with no sources in your build,
+stay out of reach.
+
+If no source directory exists, StepDoc says so and does nothing.
 ## Messages and how to fix them
 
 Problems found in your sources appear in the Problems section of the catalog, as warnings of
@@ -340,10 +355,10 @@ from `check`, the only goal that reads feature files.
 |---|---|---|
 | `File could not be parsed, it was skipped: ...` | The Java file has a syntax error | Fix the file; its steps are missing from the catalog until then |
 | `File is not valid UTF-8, it was skipped` | The file is not written in the encoding StepDoc reads, named in the message | Convert the file, or set `encoding` (or `project.build.sourceEncoding`) to the encoding of your sources |
-| `Step expression of ... cannot be read from the scanned sources, the step was skipped` | The step text of the named method or lambda is a constant declared outside `sourceDirectory` (a dependency, another module), or a computed value | Write the text in the annotation or the call, or declare the constant in the scanned sources |
+| `Step expression of ... cannot be read from the scanned sources, the step was skipped` | The step text of the named method or lambda is a constant declared outside the scanned directories (a dependency, another module), or a computed value | Write the text in the annotation or the call, or declare the constant in the scanned sources |
 | `Step "..." has 1 parameter(s) but ... takes 0` | The step text and the named method or lambda do not have the same number of parameters. Cucumber will fail on this step | Fix the expression, or the method or lambda |
 | `@StepDoc documents 2 parameter(s) but method ... takes 1` | `@StepDoc` describes more parameters than the method has | Remove the extra `@StepDoc.Param` |
-| `Parameter type '...' cannot be read from the scanned sources, it was ignored` | The regular expression of a parameter type, or its name in a `ParameterType(...)` call, is a constant declared outside `sourceDirectory`, or a computed value | Write it in the annotation or the call, or declare the constant in the scanned sources |
+| `Parameter type '...' cannot be read from the scanned sources, it was ignored` | The regular expression of a parameter type, or its name in a `ParameterType(...)` call, is a constant declared outside the scanned directories, or a computed value | Write it in the annotation or the call, or declare the constant in the scanned sources |
 | `Parameter type '...' has an invalid regular expression (...), it was ignored` | The regular expression does not compile. Cucumber will fail on it too | Fix the expression |
 | `Parameter type '...' cannot be used: ...` | Cucumber refuses this declaration, for instance a name declared twice or the name of a built-in type | Rename or remove one of the declarations |
 | `Feature file could not be parsed: ...` | A `.feature` file is not valid Gherkin | Fix the file; the rules that read feature files are skipped until then |
@@ -363,8 +378,9 @@ Configuration errors stop the build at once and say which setting is wrong, for 
 
 ## Limits
 
-- **Constants declared outside the scanned sources** (a dependency, another module) have no
-  value for StepDoc: a step whose text is such a constant is reported and skipped.
+- **Constants declared outside the scanned sources** (a dependency, or a module that is not
+  listed in `sourceDirectories`) have no value for StepDoc: a step whose text is such a
+  constant is reported and skipped.
 - **Steps written as lambdas** are only found in a class that implements the `cucumber-java8`
   interface itself, and a method reference given in place of a lambda has unnamed parameters.
 - **Parameter types that are not declared in the scanned sources**, with `@ParameterType` or

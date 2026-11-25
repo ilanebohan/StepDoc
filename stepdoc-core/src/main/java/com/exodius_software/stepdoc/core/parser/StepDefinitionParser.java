@@ -32,14 +32,18 @@ public final class StepDefinitionParser {
             new JavaParser(new ParserConfiguration().setLanguageLevel(LanguageLevel.JAVA_25));
 
     /**
-     * Scans every {@code .java} file under {@code sourceRoot}, recursively.
-     * Files are visited in relative path order, so the result does not depend on the
-     * file system. A file that is not valid in {@code encoding} is reported and skipped.
+     * Scans every {@code .java} file under the {@code sourceRoots}, recursively.
+     * Roots are visited in the order given and the files of each in relative path order, so
+     * the result does not depend on the file system. All roots are read as one set of
+     * sources: a step may use a constant declared under another root. A file that is not
+     * valid in {@code encoding} is reported and skipped.
      */
-    public StepCatalog parseDirectory(Path sourceRoot, Charset encoding) throws IOException {
+    public StepCatalog parseDirectories(List<Path> sourceRoots, Charset encoding) throws IOException {
         List<ParsedFile> files = new ArrayList<>();
-        for (FileTree.Entry file : FileTree.filesWithExtension(sourceRoot, JAVA_EXTENSION)) {
-            files.add(read(file, encoding));
+        for (Path sourceRoot : sourceRoots) {
+            for (FileTree.Entry file : FileTree.filesWithExtension(sourceRoot, JAVA_EXTENSION)) {
+                files.add(read(file, encoding));
+            }
         }
         return scan(files);
     }
@@ -91,6 +95,7 @@ public final class StepDefinitionParser {
             return new ParsedFile(relativePath, Optional.empty(), List.of(problem));
         }
     }
+
     private static int firstSyntaxErrorLine(ParseResult<CompilationUnit> result) {
         return result.getProblems().stream()
                 .findFirst()

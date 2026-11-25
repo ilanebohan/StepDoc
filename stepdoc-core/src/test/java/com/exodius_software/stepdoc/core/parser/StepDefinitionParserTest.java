@@ -387,7 +387,7 @@ class StepDefinitionParserTest {
                     class RemoveSteps { @When(REMOVE) void remove() {} }
                     """);
 
-            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.UTF_8);
+            StepCatalog catalog = parser.parseDirectories(List.of(root), StandardCharsets.UTF_8);
 
             assertThat(catalog.steps()).extracting(StepDefinition::expression)
                     .containsExactly("an empty cart", "I add a book", "I remove a book");
@@ -637,7 +637,7 @@ class StepDefinitionParserTest {
                     """);
             write("steps/cart/README.md", "@When(\"not java\")");
 
-            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.UTF_8);
+            StepCatalog catalog = parser.parseDirectories(List.of(root), StandardCharsets.UTF_8);
 
             assertThat(catalog.steps())
                     .extracting(step -> step.location().file(), StepDefinition::expression)
@@ -645,6 +645,35 @@ class StepDefinitionParserTest {
                             tuple("steps/cart/CartSteps.java", "an empty cart"),
                             tuple("steps/cart/CartSteps.java", "I add a book"),
                             tuple("steps/order/OrderSteps.java", "the order is confirmed"));
+        }
+
+        @Test
+        void readsSeveralRootsInTheOrderGivenAsOneSetOfSources() throws IOException {
+            write("shop/steps/CartSteps.java", """
+                    package steps;
+                    import io.cucumber.java.en.When;
+                    import shared.Phrases;
+                    class CartSteps { @When(Phrases.ADD) void add() {} }
+                    """);
+            write("common/shared/Phrases.java", """
+                    package shared;
+                    public final class Phrases { public static final String ADD = "I add a book"; }
+                    """);
+            write("common/shared/LoginSteps.java", """
+                    package shared;
+                    import io.cucumber.java.en.Given;
+                    class LoginSteps { @Given("I am logged in") void login() {} }
+                    """);
+
+            StepCatalog catalog = parser.parseDirectories(
+                    List.of(root.resolve("shop"), root.resolve("common")), StandardCharsets.UTF_8);
+
+            assertThat(catalog.problems()).isEmpty();
+            assertThat(catalog.steps())
+                    .extracting(step -> step.location().file(), StepDefinition::expression)
+                    .containsExactly(
+                            tuple("steps/CartSteps.java", "I add a book"),
+                            tuple("shared/LoginSteps.java", "I am logged in"));
         }
 
         @Test
@@ -657,7 +686,7 @@ class StepDefinitionParserTest {
                     class CartSteps { @When("I add a book") void add() {} }
                     """);
 
-            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.UTF_8);
+            StepCatalog catalog = parser.parseDirectories(List.of(root), StandardCharsets.UTF_8);
 
             assertThat(catalog.steps()).extracting(StepDefinition::expression).containsExactly("I add a book");
             assertThat(catalog.problems()).extracting(problem -> problem.location().file())
@@ -673,7 +702,7 @@ class StepDefinitionParserTest {
                     class CafeSteps { @When("I order a caf\u00e9") void order() {} }
                     """.getBytes(StandardCharsets.ISO_8859_1));
 
-            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.ISO_8859_1);
+            StepCatalog catalog = parser.parseDirectories(List.of(root), StandardCharsets.ISO_8859_1);
 
             assertThat(catalog.steps()).extracting(StepDefinition::expression).containsExactly("I order a caf\u00e9");
             assertThat(catalog.problems()).isEmpty();
@@ -684,7 +713,7 @@ class StepDefinitionParserTest {
             Files.write(root.resolve("CafeSteps.java"),
                     "class CafeSteps { /* caf\u00e9 */ }".getBytes(StandardCharsets.ISO_8859_1));
 
-            StepCatalog catalog = parser.parseDirectory(root, StandardCharsets.US_ASCII);
+            StepCatalog catalog = parser.parseDirectories(List.of(root), StandardCharsets.US_ASCII);
 
             assertThat(catalog.problems()).extracting(Problem::message)
                     .containsExactly("File is not valid US-ASCII, it was skipped");
