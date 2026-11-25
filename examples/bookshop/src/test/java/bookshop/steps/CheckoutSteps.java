@@ -26,4 +26,9 @@ public class CheckoutSteps {
     @Then("my order number is {int}")
     public void orderNumber() {
     }
+
+    /** Deliberately ambiguous: "I pay by card" matches this step and the first one of this class. */
+    @When("I pay by card")
+    public void payByCard() {
+    }
 }

@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.exodius_software.stepdoc.core.model.StepCatalog;
@@ -47,6 +48,7 @@ public final class CatalogLinter {
             case DUPLICATE_STEP -> duplicateSteps(catalog);
             case UNUSED_STEP -> unusedSteps(usage);
             case UNDEFINED_STEP -> undefinedSteps(usage);
+            case AMBIGUOUS_STEP -> ambiguousSteps(usage);
             case SOURCE_PROBLEM -> sourceProblems(catalog, usage);
         };
     }
@@ -103,6 +105,18 @@ public final class CatalogLinter {
                 .map(step -> new Violation(LintRule.UNDEFINED_STEP, step.location(),
                         "Step \"" + step.text() + "\" has no step definition"))
                 .toList();
+    }
+
+    private static List<Violation> ambiguousSteps(StepUsage usage) {
+        return usage.ambiguousSteps().stream()
+                .map(step -> new Violation(LintRule.AMBIGUOUS_STEP, step.location(), "Step \"" + step.text()
+                        + "\" matches " + step.definitions().size() + " step definitions: "
+                        + step.definitions().stream().map(CatalogLinter::located).collect(Collectors.joining(", "))))
+                .toList();
+    }
+
+    private static String located(StepDefinition step) {
+        return quoted(step) + " at " + step.location();
     }
 
     private static List<Violation> sourceProblems(StepCatalog catalog, StepUsage usage) {

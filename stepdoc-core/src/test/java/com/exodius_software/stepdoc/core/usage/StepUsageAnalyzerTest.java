@@ -16,6 +16,7 @@ import com.exodius_software.stepdoc.core.model.SourceLocation;
 import com.exodius_software.stepdoc.core.model.StepCatalog;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.parser.StepDefinitionParser;
+import com.exodius_software.stepdoc.core.usage.StepUsage.AmbiguousStep;
 import com.exodius_software.stepdoc.core.usage.StepUsage.UndefinedStep;
 
 class StepUsageAnalyzerTest {
@@ -256,6 +257,84 @@ class StepUsageAnalyzerTest {
         assertThat(analyze(CART_STEPS, features).undefinedSteps())
                 .extracting(UndefinedStep::text, step -> step.location().line())
                 .containsExactly(tuple("I apply two coupons", 7));
+    }
+
+    @Test
+    void reportsOnceAFeatureStepThatSeveralDefinitionsMatch() throws IOException {
+        write(features, "cart.feature", """
+                Feature: Cart
+                  Scenario: First
+                    Given an empty cart
+                    When I add 2 books
+
+                  Scenario: Second
+                    When I add 2 books
+                    And I add many books
+                """);
+
+        StepUsage usage = analyze("""
+                import io.cucumber.java.en.*;
+
+                class CartSteps {
+                    @Given("an empty cart") void emptyCart() {}
+                    @When("I add {int} books") void addCount(int count) {}
+                    @When("^I add (.+) books$") void addAnything(String what) {}
+                }
+                """, features);
+
+        assertThat(usage.ambiguousSteps()).singleElement().satisfies(step -> {
+            assertThat(step.text()).isEqualTo("I add 2 books");
+            assertThat(step.location()).isEqualTo(new SourceLocation("cart.feature", 4));
+            assertThat(step.definitions()).extracting(StepDefinition::expression)
+                    .containsExactly("I add {int} books", "^I add (.+) books$");
+        });
+        assertThat(usage.undefinedSteps()).isEmpty();
+    }
+
+    @Test
+    void doesNotCallADuplicateOrAGuessedParameterTypeAmbiguous() throws IOException {
+        write(features, "cart.feature", """
+                Feature: Cart
+                  Scenario: Editions
+                    Given an empty cart
+                    When I pick a hardcover edition
+                """);
+
+        StepUsage usage = analyze("""
+                import io.cucumber.java.en.*;
+
+                class CartSteps {
+                    @Given("an empty cart") void emptyCart() {}
+                    @Given("an empty cart") void sameText() {}
+                    @When("I pick a {cover} edition") void pick(String cover) {}
+                    @When("I pick a hardcover edition") void pickHardcover() {}
+                }
+                """, features);
+
+        assertThat(usage.ambiguousSteps()).isEmpty();
+        assertThat(usage.unusedSteps()).isEmpty();
+    }
+
+    @Test
+    void trustsADeclaredParameterTypeWhenLookingForAmbiguity() throws IOException {
+        write(features, "cart.feature", """
+                Feature: Cart
+                  Scenario: Editions
+                    When I pick a hardcover edition
+                """);
+
+        StepUsage usage = analyze("""
+                import io.cucumber.java.ParameterType;
+                import io.cucumber.java.en.*;
+
+                class CartSteps {
+                    @ParameterType("paperback|hardcover") String cover(String value) { return value; }
+                    @When("I pick a {cover} edition") void pick(String cover) {}
+                    @When("I pick a hardcover edition") void pickHardcover() {}
+                }
+                """, features);
+
+        assertThat(usage.ambiguousSteps()).extracting(AmbiguousStep::text).containsExactly("I pick a hardcover edition");
     }
 
     @Test

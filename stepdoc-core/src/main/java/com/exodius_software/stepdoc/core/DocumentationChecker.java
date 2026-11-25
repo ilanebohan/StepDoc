@@ -32,7 +32,7 @@ public final class DocumentationChecker {
     }
 
     private static final List<LintRule> RULES_READING_FEATURES =
-            List.of(LintRule.UNUSED_STEP, LintRule.UNDEFINED_STEP);
+            List.of(LintRule.UNUSED_STEP, LintRule.UNDEFINED_STEP, LintRule.AMBIGUOUS_STEP);
 
     private final StepDefinitionParser parser = new StepDefinitionParser();
 

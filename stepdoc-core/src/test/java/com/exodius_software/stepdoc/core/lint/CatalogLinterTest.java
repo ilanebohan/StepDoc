@@ -18,6 +18,7 @@ import com.exodius_software.stepdoc.core.model.StepDefinition;
 import com.exodius_software.stepdoc.core.model.StepKind;
 import com.exodius_software.stepdoc.core.model.StepParameter;
 import com.exodius_software.stepdoc.core.usage.StepUsage;
+import com.exodius_software.stepdoc.core.usage.StepUsage.AmbiguousStep;
 import com.exodius_software.stepdoc.core.usage.StepUsage.UndefinedStep;
 
 class CatalogLinterTest {
@@ -80,7 +81,7 @@ class CatalogLinterTest {
     void reportsTheStepsThatFeatureFilesDoNotUse() {
         StepDefinition used = step("an empty cart", "Starts empty", 3);
         StepDefinition unused = step("the cart is empty", "Checks the cart", 8);
-        StepUsage usage = new StepUsage(List.of(unused), List.of(), List.of(), "");
+        StepUsage usage = new StepUsage(List.of(unused), List.of(), List.of(), List.of(), "");
 
         assertThat(CatalogLinter.lint(catalog(used, unused), usage, ALL_RULES)).extracting(Violation::toString)
                 .containsExactly("[unused-step] steps/CartSteps.java:8 "
@@ -91,15 +92,30 @@ class CatalogLinterTest {
     void reportsTheFeatureStepsThatNoDefinitionImplements() {
         StepUsage usage = new StepUsage(List.of(),
                 List.of(new UndefinedStep("I apply a coupon", new SourceLocation("cart.feature", 6))),
-                List.of(), "");
+                List.of(), List.of(), "");
 
         assertThat(CatalogLinter.lint(catalog(), usage, ALL_RULES)).extracting(Violation::toString)
                 .containsExactly("[undefined-step] cart.feature:6 Step \"I apply a coupon\" has no step definition");
     }
 
     @Test
-    void turnsProblemsFoundInFeatureFilesIntoViolations() {
+    void reportsTheFeatureStepsThatSeveralDefinitionsImplement() {
+        StepDefinition byNumber = step(StepKind.WHEN, "I add {int} books", 12);
+        StepDefinition byAnything = step(StepKind.WHEN, "I add {} books", 20);
         StepUsage usage = new StepUsage(List.of(), List.of(),
+                List.of(new AmbiguousStep("I add 2 books", new SourceLocation("cart.feature", 4),
+                        List.of(byNumber, byAnything))),
+                List.of(), "");
+
+        assertThat(CatalogLinter.lint(catalog(byNumber, byAnything), usage, Set.of(LintRule.AMBIGUOUS_STEP)))
+                .extracting(Violation::toString)
+                .containsExactly("[ambiguous-step] cart.feature:4 Step \"I add 2 books\" matches 2 step definitions: "
+                        + "\"I add {int} books\" at steps/CartSteps.java:12, \"I add {} books\" at steps/CartSteps.java:20");
+    }
+
+    @Test
+    void turnsProblemsFoundInFeatureFilesIntoViolations() {
+        StepUsage usage = new StepUsage(List.of(), List.of(), List.of(),
                 List.of(new Problem(new SourceLocation("cart.feature", 4), "Feature file could not be parsed")),
                 "some feature files could not be parsed");
 
@@ -136,7 +152,7 @@ class CatalogLinterTest {
         assertThatThrownBy(() -> LintRule.fromId("missing-example"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unknown rule 'missing-example', expected one of: "
-                        + "undocumented-step, undocumented-parameter, duplicate-step, unused-step, undefined-step, source-problem");
+                        + "undocumented-step, undocumented-parameter, duplicate-step, unused-step, undefined-step, ambiguous-step, source-problem");
     }
 
     private static StepCatalog catalog(StepDefinition... steps) {
