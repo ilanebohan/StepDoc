@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ class DocumentationGeneratorTest {
                 """);
         Path output = workspace.resolve("target/stepdoc");
 
-        DocumentationGenerator.Result result = new DocumentationGenerator().generate(new SourceSettings(sources, StandardCharsets.UTF_8),
+        DocumentationGenerator.Result result = new DocumentationGenerator().generate(new SourceSettings(List.of(sources), StandardCharsets.UTF_8),
                 new OutputSettings(output, "catalog", Set.of(OutputFormat.HTML, OutputFormat.MARKDOWN)),
                 RenderOptions.defaults());
 
@@ -45,7 +46,7 @@ class DocumentationGeneratorTest {
         Path sources = Files.createDirectories(workspace.resolve("src"));
         Path output = workspace.resolve("out");
 
-        new DocumentationGenerator().generate(new SourceSettings(sources, StandardCharsets.UTF_8),
+        new DocumentationGenerator().generate(new SourceSettings(List.of(sources), StandardCharsets.UTF_8),
                 new OutputSettings(output, "steps", Set.of(OutputFormat.HTML)), RenderOptions.defaults());
 
         try (var files = Files.list(output)) {

@@ -26,6 +26,8 @@ break one of them; such a change is listed under "Changed" or "Removed". The cla
   defined outside the scanned sources.
 - Rule `ambiguous-step` reports the steps of feature files that several step definitions
   match, which Cucumber refuses to run.
+- Setting `sourceDirectories` reads step definitions from several directories as one set of
+  sources, for a project that keeps steps in more than one module.
 
 ### Changed
 

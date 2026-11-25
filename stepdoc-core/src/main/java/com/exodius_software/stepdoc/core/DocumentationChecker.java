@@ -42,7 +42,7 @@ public final class DocumentationChecker {
      */
     public Result check(SourceSettings sources, List<Path> featureDirectories, Set<LintRule> enabledRules)
             throws IOException {
-        StepCatalog catalog = parser.parseDirectory(sources.root(), sources.encoding());
+        StepCatalog catalog = parser.parseDirectories(sources.roots(), sources.encoding());
         List<LintRule> rulesReadingFeatures = RULES_READING_FEATURES.stream()
                 .filter(enabledRules::contains)
                 .toList();

@@ -85,7 +85,7 @@ class DocumentationCheckerTest {
     }
 
     private DocumentationChecker.Result check(Set<LintRule> rules) throws IOException {
-        SourceSettings utf8Sources = new SourceSettings(sources, StandardCharsets.UTF_8);
+        SourceSettings utf8Sources = new SourceSettings(List.of(sources), StandardCharsets.UTF_8);
         return new DocumentationChecker().check(utf8Sources, List.of(features), rules);
     }
 }

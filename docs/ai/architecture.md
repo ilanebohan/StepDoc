@@ -82,10 +82,10 @@ It also tells which feature steps several definitions match, which Cucumber refu
 Silence is stricter there: a match that rests on an assumed parameter type does not count,
 and definitions with the same text are left to `duplicate-step`.
 
-**Deterministic output.** Files are visited in relative path order, steps keep their source
-order, groups use insertion-ordered or enum-ordered maps, and no document contains a date or a
-machine-specific path. Generated documentation is meant to be committed or published and
-compared between builds.
+**Deterministic output.** Source directories are visited in the order given and their files in
+relative path order, steps keep their source order, groups use insertion-ordered or
+enum-ordered maps, and no document contains a date or a machine-specific path. Generated
+documentation is meant to be committed or published and compared between builds.
 
 **Javadoc first, `@StepDoc` second.** A team adopts StepDoc without touching its code: Javadoc
 summaries and `@param` tags are the default documentation. `@StepDoc` only adds what Javadoc
