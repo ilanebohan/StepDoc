@@ -55,7 +55,7 @@ your step definitions:
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </plugin>
 ```
 
@@ -66,7 +66,7 @@ sources, so it adds nothing to what you ship:
 <dependency>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-annotations</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -203,7 +203,7 @@ Set them in the plugin configuration, or on the command line with `-Dstepdoc.<se
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <configuration>
         <title>Bookshop steps</title>
         <formats>html</formats>

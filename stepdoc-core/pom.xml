@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.exodius-software.stepdoc</groupId>
         <artifactId>stepdoc-parent</artifactId>
-        <version>0.2.0-SNAPSHOT</version>
+        <version>0.2.0</version>
     </parent>
 
     <artifactId>stepdoc-core</artifactId>
