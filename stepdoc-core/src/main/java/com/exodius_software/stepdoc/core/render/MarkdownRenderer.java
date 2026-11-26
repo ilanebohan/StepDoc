@@ -3,8 +3,11 @@ package com.exodius_software.stepdoc.core.render;
 import static java.util.stream.Collectors.joining;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
+import com.exodius_software.stepdoc.core.model.ParameterTypeDefinition;
 import com.exodius_software.stepdoc.core.model.Problem;
 import com.exodius_software.stepdoc.core.model.StepCatalog;
 import com.exodius_software.stepdoc.core.model.StepDefinition;
@@ -25,8 +28,12 @@ final class MarkdownRenderer implements CatalogRenderer {
         StringBuilder markdown = new StringBuilder();
         markdown.append("# ").append(singleLine(options.title())).append("\n\n");
         markdown.append(CatalogLayout.summary(catalog, sections)).append("\n");
+        Map<String, ParameterTypeDefinition> types = CatalogLayout.parameterTypesByName(catalog);
         for (Section section : sections) {
-            appendSection(markdown, section, options);
+            appendSection(markdown, section, options, types);
+        }
+        if (!types.isEmpty()) {
+            appendParameterTypes(markdown, types.values(), options);
         }
         if (options.showProblems() && !catalog.problems().isEmpty()) {
             appendProblems(markdown, catalog.problems());
@@ -34,7 +41,8 @@ final class MarkdownRenderer implements CatalogRenderer {
         return markdown.toString();
     }
 
-    private static void appendSection(StringBuilder markdown, Section section, RenderOptions options) {
+    private static void appendSection(StringBuilder markdown, Section section, RenderOptions options,
+                                      Map<String, ParameterTypeDefinition> types) {
         markdown.append("\n## ").append(singleLine(section.title())).append("\n\n");
         if (!section.subtitle().isEmpty()) {
             markdown.append(codeSpan(section.subtitle())).append("\n\n");
@@ -51,7 +59,7 @@ final class MarkdownRenderer implements CatalogRenderer {
                     codeSpan(step.expression()),
                     text(step.description()),
                     step.parameters().stream()
-                            .map(parameter -> parameter(step, parameter))
+                            .map(parameter -> parameter(step, parameter, types))
                             .collect(joining(LINE_BREAK))));
             if (options.showSourceLocation()) {
                 cells.add(codeSpan(step.location().toString()));
@@ -61,7 +69,8 @@ final class MarkdownRenderer implements CatalogRenderer {
     }
 
     /** {@code **quantity** `{int}` number of copies (e.g. `1`, `12`)} */
-    private static String parameter(StepDefinition step, StepParameter parameter) {
+    private static String parameter(StepDefinition step, StepParameter parameter,
+                                    Map<String, ParameterTypeDefinition> types) {
         List<String> parts = new ArrayList<>();
         if (!parameter.name().isEmpty()) {
             parts.add("**" + text(parameter.name()) + "**");
@@ -70,6 +79,8 @@ final class MarkdownRenderer implements CatalogRenderer {
         if (!type.isEmpty()) {
             parts.add(codeSpan(type));
         }
+        CatalogLayout.declaredTypeOf(parameter, types)
+                .ifPresent(declared -> parts.add("matching " + codeSpan(declared.regex())));
         if (!parameter.description().isEmpty()) {
             parts.add(text(parameter.description()));
         }
@@ -78,6 +89,25 @@ final class MarkdownRenderer implements CatalogRenderer {
             parts.add("(e.g. " + examples + ")");
         }
         return String.join(" ", parts);
+    }
+
+    private static void appendParameterTypes(StringBuilder markdown, Collection<ParameterTypeDefinition> types,
+                                             RenderOptions options) {
+        List<String> headers = new ArrayList<>(List.of("Name", "Matches", "Description"));
+        if (options.showSourceLocation()) {
+            headers.add("Source");
+        }
+        markdown.append("\n## Parameter types\n\n");
+        markdown.append(row(headers));
+        markdown.append(row(headers.stream().map(header -> "---").toList()));
+        for (ParameterTypeDefinition type : types) {
+            List<String> cells = new ArrayList<>(List.of(
+                    codeSpan("{" + type.name() + "}"), codeSpan(type.regex()), text(type.description())));
+            if (options.showSourceLocation()) {
+                cells.add(codeSpan(type.location().toString()));
+            }
+            markdown.append(row(cells));
+        }
     }
 
     private static void appendProblems(StringBuilder markdown, List<Problem> problems) {

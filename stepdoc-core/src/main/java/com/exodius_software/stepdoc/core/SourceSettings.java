@@ -5,18 +5,20 @@ import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 
 /**
  * What is scanned and how it is read.
  *
- * @param root     directory holding the step definition sources, searched recursively
+ * @param roots    directories holding the step definition sources, each searched recursively
+ *                 and all read as one set of sources
  * @param encoding encoding of the source files
  */
-public record SourceSettings(Path root, Charset encoding) {
+public record SourceSettings(List<Path> roots, Charset encoding) {
 
     public SourceSettings {
-        Objects.requireNonNull(root, "root");
+        roots = List.copyOf(roots);
         Objects.requireNonNull(encoding, "encoding");
     }
 
@@ -27,12 +29,12 @@ public record SourceSettings(Path root, Charset encoding) {
      *                     of the machine, so that a build gives the same result everywhere
      * @throws IllegalArgumentException when no such charset exists
      */
-    public static SourceSettings of(Path root, String encodingName) {
+    public static SourceSettings of(List<Path> roots, String encodingName) {
         if (encodingName == null || encodingName.isBlank()) {
-            return new SourceSettings(root, StandardCharsets.UTF_8);
+            return new SourceSettings(roots, StandardCharsets.UTF_8);
         }
         try {
-            return new SourceSettings(root, Charset.forName(encodingName.trim()));
+            return new SourceSettings(roots, Charset.forName(encodingName.trim()));
         } catch (IllegalCharsetNameException | UnsupportedCharsetException e) {
             throw new IllegalArgumentException("Unknown encoding '" + encodingName + "'", e);
         }

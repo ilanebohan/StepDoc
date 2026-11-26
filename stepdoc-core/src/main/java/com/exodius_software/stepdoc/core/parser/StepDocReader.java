@@ -23,11 +23,11 @@ final class StepDocReader {
     private StepDocReader() {
     }
 
-    static StepDocValues read(MethodDeclaration method) {
+    static StepDocValues read(MethodDeclaration method, StringConstants constants) {
         return method.getAnnotations().stream()
                 .filter(StepDocReader::isStepDoc)
                 .findFirst()
-                .map(StepDocReader::values)
+                .map(stepDoc -> values(stepDoc, constants))
                 .orElse(StepDocValues.NONE);
     }
 
@@ -36,34 +36,38 @@ final class StepDocReader {
         return SIMPLE_NAME.equals(name) || QUALIFIED_NAME.equals(name);
     }
 
-    private static StepDocValues values(AnnotationExpr stepDoc) {
-        String description = AnnotationValues.member(stepDoc, "value").map(StepDocReader::text).orElse("");
+    private static StepDocValues values(AnnotationExpr stepDoc, StringConstants constants) {
+        String description = AnnotationValues.member(stepDoc, "value")
+                .map(value -> text(value, constants))
+                .orElse("");
         List<ParamDoc> params = AnnotationValues.member(stepDoc, "params")
                 .map(AnnotationValues::elements)
                 .orElse(List.of())
                 .stream()
                 .filter(AnnotationExpr.class::isInstance)
-                .map(element -> paramDoc((AnnotationExpr) element))
+                .map(element -> paramDoc((AnnotationExpr) element, constants))
                 .toList();
         return new StepDocValues(description, params);
     }
 
-    private static ParamDoc paramDoc(AnnotationExpr param) {
-        String description = AnnotationValues.member(param, "description").map(StepDocReader::text).orElse("");
+    private static ParamDoc paramDoc(AnnotationExpr param, StringConstants constants) {
+        String description = AnnotationValues.member(param, "description")
+                .map(value -> text(value, constants))
+                .orElse("");
         List<String> examples = AnnotationValues.member(param, "examples")
                 .map(AnnotationValues::elements)
                 .orElse(List.of())
                 .stream()
-                .map(StepDocReader::text)
+                .map(example -> text(example, constants))
                 .toList();
         return new ParamDoc(description, examples);
     }
 
     /**
-     * A constant reference cannot be resolved without the classpath. Its source text is kept
-     * rather than dropped, so the gap shows up in the generated documentation.
+     * A constant declared outside the scanned sources has no value here. Its source text is
+     * kept rather than dropped, so the gap shows up in the generated documentation.
      */
-    private static String text(Expression expression) {
-        return AnnotationValues.constantString(expression).orElseGet(expression::toString);
+    private static String text(Expression expression, StringConstants constants) {
+        return constants.valueOf(expression).orElseGet(expression::toString);
     }
 }

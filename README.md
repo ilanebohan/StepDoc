@@ -11,7 +11,8 @@ New here? The [user guide](docs/user-guide.md) covers everything, step by step.
 
 1. StepDoc reads your step definition sources (`src/test/java` by default).
    Nothing is compiled and no test is run. Step annotations of every Gherkin language are
-   recognised (`io.cucumber.java.en`, `io.cucumber.java.de`, ...).
+   recognised (`io.cucumber.java.en`, `io.cucumber.java.de`, ...), and so are steps written
+   as lambdas (`cucumber-java8`).
 2. Each step is described by its Javadoc. `@StepDoc` is optional, for example values.
 3. `stepdoc:generate` writes the catalog in Markdown and HTML.
    `stepdoc:check` fails the build when a step is not documented, or not used by any feature file.
@@ -49,7 +50,7 @@ StepDoc is on Maven Central. Add the plugin to the `pom.xml` of your test projec
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </plugin>
 ```
 
@@ -59,7 +60,7 @@ To use `@StepDoc`, add the annotations too. It only exists in your sources, so t
 <dependency>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-annotations</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -68,7 +69,7 @@ To use `@StepDoc`, add the annotations too. It only exists in your sources, so t
 
 ```shell
 mvn stepdoc:generate   # writes target/stepdoc/steps.md and steps.html
-mvn stepdoc:check      # fails the build if a step is undocumented, duplicated or unused
+mvn stepdoc:check      # fails the build if a step is undocumented, duplicated, unused, undefined or ambiguous
 ```
 
 To run both on every build, add an execution to the plugin:
@@ -96,6 +97,7 @@ The [user guide](docs/user-guide.md) explains each setting, each rule and each m
 | Setting | Default | |
 |---|---|---|
 | `sourceDirectory` | `src/test/java` | Where the step definitions are |
+| `sourceDirectories` | none | Several directories instead of one, comma-separated, for steps kept in more than one place |
 | `encoding` | `project.build.sourceEncoding`, else UTF-8 | Encoding of the step definition sources |
 | `skip` | `false` | Skips StepDoc |
 
@@ -117,7 +119,7 @@ The [user guide](docs/user-guide.md) explains each setting, each rule and each m
 | Setting | Default | |
 |---|---|---|
 | `rules` | all | Rules to apply, comma-separated (see below) |
-| `featureDirectories` | `src/test/resources` | Where the `.feature` files are, for the `unused-step` rule. Several directories can be given, comma-separated; they are searched recursively |
+| `featureDirectories` | `src/test/resources` | Where the `.feature` files are, for the `unused-step`, `undefined-step` and `ambiguous-step` rules. Several directories can be given, comma-separated; they are searched recursively |
 | `failOnViolation` | `true` | `false` only prints warnings |
 
 | Rule | Fails when |
@@ -126,12 +128,15 @@ The [user guide](docs/user-guide.md) explains each setting, each rule and each m
 | `undocumented-parameter` | A parameter has no description |
 | `duplicate-step` | Two steps have the same text, which Cucumber refuses to run |
 | `unused-step` | No `.feature` file uses the step |
+| `undefined-step` | A step of a `.feature` file has no step definition |
+| `ambiguous-step` | A step of a `.feature` file matches several step definitions |
 | `source-problem` | A file cannot be read, or a step and its method disagree on parameters |
 
-`unused-step` matches the steps of your feature files against your step definitions the way
-Cucumber does: any Gherkin language, scenario outlines with their example values, Cucumber
-Expressions and regular expressions. If it finds no feature file, or cannot parse one, it
-prints a warning and reports nothing rather than calling used steps unused.
+`unused-step`, `undefined-step` and `ambiguous-step` match the steps of your feature files
+against your step definitions the way Cucumber does: any Gherkin language, scenario outlines
+with their example values, Cucumber Expressions and regular expressions. If they find no
+feature file, or cannot parse one, they print a warning and report nothing rather than
+accusing the wrong step.
 
 ## Try it
 
@@ -142,7 +147,8 @@ at the root, run from that folder:
 ../../mvnw stepdoc:generate stepdoc:check
 ```
 
-`check` fails on purpose: the example contains undocumented, unused and broken steps.
+`check` fails on purpose: the example contains undocumented, unused, undefined, ambiguous
+and broken steps.
 
 ## Contributing
 

@@ -30,7 +30,7 @@ StepDoc gives the team two things:
 
 1. StepDoc reads the **source files** of your step definitions, as text.
 2. It finds every method that carries a Cucumber step annotation (`@Given`, `@When`, `@Then`
-   and their equivalents in every Gherkin language).
+   and their equivalents in every Gherkin language), and every step written as a lambda.
 3. It takes the documentation of each step from its Javadoc, and from the optional `@StepDoc`
    annotation.
 4. `stepdoc:generate` writes the catalog; `stepdoc:check` applies the documentation rules.
@@ -55,7 +55,7 @@ your step definitions:
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </plugin>
 ```
 
@@ -66,7 +66,7 @@ sources, so it adds nothing to what you ship:
 <dependency>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-annotations</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```
@@ -114,15 +114,48 @@ public void addCopies(int quantity, String title) { ... }
   `@StepDoc` description is empty (`description = ""`) keeps its Javadoc description, so you
   can add examples without repeating the text.
 
+### Steps written as lambdas
+
+With `cucumber-java8`, a step is a call made by a class that implements `En`, or the interface
+of another language. A lambda can carry neither Javadoc nor `@StepDoc`, so StepDoc reads the
+**block comment written just above the call**, with the syntax of Javadoc:
+
+```java
+public class CartSteps implements En {
+
+    public CartSteps() {
+        /*
+         * Adds copies of a book to the cart. The cart is created if needed.
+         *
+         * @param quantity number of copies, at least 1
+         * @param title    book title, exactly as shown in the catalog
+         */
+        When("I add {int} copies of {string}", (Integer quantity, String title) -> { ... });
+    }
+}
+```
+
+- `/* ... */` and `/** ... */` are both read. Prefer `/* ... */`: since Java 23 the compiler
+  can warn about a `/** ... */` comment that is not placed on a declaration. A `//` comment is
+  not read.
+- Each `@param` describes the **lambda parameter of the same name**. A step given a method
+  reference (`this::addCopies`) is listed, but its parameters have no name and cannot be
+  documented: write a lambda.
+- The class must implement the interface **itself**. Steps of a class that only inherits it
+  from a parent class are not found.
+- Example values need `@StepDoc`, so they are not available for these steps.
 ### What StepDoc recognises
 
 | In your code | In the catalog |
 |---|---|
 | A step annotation of any Gherkin language, imported by name, through `.*` or written fully qualified | One entry, under its keyword |
 | Several step annotations on one method | One entry per annotation, sharing the documentation |
+| A step written as a lambda (`cucumber-java8`): `When("I pay", () -> ...)` in a class that implements `En` or the interface of another language | One entry, under its keyword |
+| A constant as step text: `@When(Phrases.ADD)` | Read like a text in quotes, when the constant is declared in the scanned sources |
 | A Cucumber Expression: `I add {int} copies of {string}` | Each parameter with its type: `{int}`, `{string}`, `{}`, or your own `{color}` |
 | A regular expression: `^I pay by (card\|cash)$` | Each capturing group, with the Java type of the method parameter |
 | A data table or a doc string as last parameter | A parameter marked `data table` or `doc string` |
+| A parameter type of yours: `@ParameterType("red\|blue")` on a method `color`, or `ParameterType("color", "red\|blue", ...)` with `cucumber-java8` | Listed under "Parameter types" with its Javadoc, or the block comment above the call; each `{color}` parameter shows what it matches |
 
 Hooks (`@Before`, `@After`) and annotations of other libraries are ignored.
 
@@ -170,7 +203,7 @@ Set them in the plugin configuration, or on the command line with `-Dstepdoc.<se
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <configuration>
         <title>Bookshop steps</title>
         <formats>html</formats>
@@ -193,13 +226,15 @@ mvn stepdoc:check
 On the example project of this repository:
 
 ```
+[ERROR] [ambiguous-step] bookshop/cart.feature:15 Step "I pay by card" matches 2 step definitions: "^I pay by (card|cash)$" at bookshop/steps/CheckoutSteps.java:12, "I pay by card" at bookshop/steps/CheckoutSteps.java:31
+[ERROR] [undefined-step] bookshop/cart.feature:22 Step "I apply the coupon "WELCOME"" has no step definition
 [ERROR] [undocumented-parameter] bookshop/steps/CartSteps.java:40 Parameter 'total' of step "the cart total is {double} euros" has no description
 [ERROR] [undocumented-step] bookshop/steps/CartSteps.java:44 Step "the cart is empty" has no description
 [ERROR] [unused-step] bookshop/steps/CartSteps.java:44 Step "the cart is empty" is not used by any feature file
 [ERROR] [unused-step] bookshop/steps/CheckoutSteps.java:26 Step "my order number is {int}" is not used by any feature file
 [ERROR] [source-problem] bookshop/steps/CheckoutSteps.java:26 Step "my order number is {int}" has 1 parameter(s) but method orderNumber takes 0
 [ERROR] BUILD FAILURE
-[ERROR] Failed to execute goal ... StepDoc: 5 violation(s), 8 step(s) checked against 5 rule(s)
+[ERROR] Failed to execute goal ... StepDoc: 7 violation(s), 9 step(s) checked against 7 rule(s)
 ```
 
 ### Rules
@@ -210,6 +245,8 @@ On the example project of this repository:
 | `undocumented-parameter` | A parameter has no description, data tables and doc strings included | Add its `@param`, or a `@StepDoc.Param` |
 | `duplicate-step` | Two methods have the same step text. Cucumber refuses to run such steps, whatever their keywords | Keep one of the two |
 | `unused-step` | No `.feature` file uses the step | Delete the step, or write the scenario it was made for |
+| `undefined-step` | A step of a `.feature` file has no step definition. Reported once per step text, where it first appears | Write the step definition, or fix the wording of the step |
+| `ambiguous-step` | A step of a `.feature` file matches several step definitions. Cucumber refuses to run such a step | Keep one definition, or make their texts more precise |
 | `source-problem` | StepDoc could not read or understand something (see [Messages](#messages-and-how-to-fix-them)) | Depends on the message |
 
 ### Settings
@@ -217,13 +254,14 @@ On the example project of this repository:
 | Setting | Default | |
 |---|---|---|
 | `rules` | all | Rules to apply, comma-separated. Empty means all of them, including rules added by future versions |
-| `featureDirectories` | `src/test/resources` | Directories that hold your `.feature` files, comma-separated, searched recursively. Only used by `unused-step` |
+| `featureDirectories` | `src/test/resources` | Directories that hold your `.feature` files, comma-separated, searched recursively. Only used by `unused-step`, `undefined-step` and `ambiguous-step` |
 | `failOnViolation` | `true` | `false` prints the issues as warnings and lets the build pass |
 
-### How unused steps are found
+### How feature files are read
 
-StepDoc reads your feature files and matches every step of every scenario against your step
-definitions, the way Cucumber does when it runs them:
+`unused-step`, `undefined-step` and `ambiguous-step` come from one comparison. StepDoc reads
+your feature files and matches every step of every scenario against your step definitions,
+the way Cucumber does when it runs them:
 
 - feature files in any Gherkin language (`# language: de`);
 - steps of a `Background`, and steps of a `Scenario Outline` with the values of each example row;
@@ -231,11 +269,19 @@ definitions, the way Cucumber does when it runs them:
 
 It prefers saying nothing to being wrong:
 
-- If it finds **no feature file**, or **cannot parse one**, the rule is skipped and a warning
-  says why. Check `featureDirectories` if your features are not in `src/test/resources`.
-- A step that uses a **parameter type of your own** (`{color}`) is considered used as soon as
-  the rest of its text matches a scenario step, because StepDoc does not know which values the
-  type accepts.
+- If it finds **no feature file**, or **cannot parse one**, the three rules are skipped and a
+  warning says why. Check `featureDirectories` if your features are not in `src/test/resources`.
+- A step that uses a **parameter type of your own** (`{color}`) is matched with the regular
+  expression of its `@ParameterType`. When StepDoc cannot find that declaration (a type
+  registered in code, or coming from a dependency), the step is considered used as soon as the
+  rest of its text matches a scenario step. Such a guess never makes a step ambiguous.
+- Two step definitions with **the same text** are a `duplicate-step`, not an ambiguity.
+
+`undefined-step` can only know the step definitions StepDoc reads. A step implemented
+somewhere else (another module, a dependency), or by a step definition reported as
+a `source-problem`, looks undefined. Fix the source problems first. For steps kept in another
+module, add its sources with [`sourceDirectories`](#settings-shared-by-both-goals); for steps
+that come from a dependency, leave `undefined-step` out of `rules`.
 
 ### Run it on every build
 
@@ -259,16 +305,18 @@ Bind the goals to your build, so the catalog is always up to date and the rules 
 On an existing project, the first `check` usually reports a lot. A way to get there:
 
 1. Start with `failOnViolation` set to `false`: the build passes and you see the list.
-2. Turn on the cheap rules first, for example `<rules>duplicate-step,source-problem</rules>`,
-   and let them fail the build.
+2. Turn on the rules that find real errors first, for example
+   `<rules>duplicate-step,ambiguous-step,source-problem</rules>`, and let them fail the build.
 3. Add `undocumented-step`, then `undocumented-parameter`, as the team documents its steps.
-4. Finish with `unused-step`, once you have agreed on what to do with unused steps.
+4. Finish with `unused-step` and `undefined-step`, once you have agreed on what to do with
+   unused steps and with scenarios written ahead of their steps.
 
 ## Settings shared by both goals
 
 | Setting | Default | |
 |---|---|---|
 | `sourceDirectory` | `src/test/java` | Where your step definitions are, searched recursively |
+| `sourceDirectories` | none | Several directories instead of one, comma-separated. When set, `sourceDirectory` is not used |
 | `encoding` | `project.build.sourceEncoding` | Encoding of your step definition sources and of `htmlStylesheet`. UTF-8 if the project sets none, on every machine |
 | `skip` | `false` | Skips StepDoc, for example with `-Dstepdoc.skip` |
 
@@ -277,34 +325,51 @@ On an existing project, the first `check` usually reports a lot. A way to get th
 Feature files do not use `encoding`. They follow the rule of Gherkin: UTF-8, unless the file
 starts with a comment such as `# encoding: iso-8859-1`.
 
-In a multi-module project, declare the plugin in each module that holds step definitions:
-StepDoc documents the sources of the module it runs in, not the steps that come from a
-dependency. If the feature files live in another module, point `featureDirectories` at it,
-for example `../acceptance-tests/src/test/resources`.
+In a multi-module project, declare the plugin in each module that holds step definitions.
+By default StepDoc documents the sources of the module it runs in. If the feature files live
+in another module, point `featureDirectories` at it, for example
+`../acceptance-tests/src/test/resources`.
 
-If `sourceDirectory` does not exist, StepDoc says so and does nothing.
+When a module also uses **steps kept in another module**, list both source directories.
+StepDoc then reads them as one set of sources: the catalog holds all their steps, a constant
+of one can be used by the other, and `undefined-step` knows every step.
 
+```xml
+<configuration>
+    <sourceDirectories>src/test/java,../shared-steps/src/test/java</sourceDirectories>
+</configuration>
+```
+
+A relative path starts from the directory of the module. A directory that does not exist is
+skipped with a warning. Steps that come from a dependency, with no sources in your build,
+stay out of reach.
+
+If no source directory exists, StepDoc says so and does nothing.
 ## Messages and how to fix them
 
 Problems found in your sources appear in the Problems section of the catalog, as warnings of
-`generate`, and as `source-problem` issues of `check`. The last two of this table only come
+`generate`, and as `source-problem` issues of `check`. The last three of this table only come
 from `check`, the only goal that reads feature files.
 
 | Message | Meaning | What to do |
 |---|---|---|
 | `File could not be parsed, it was skipped: ...` | The Java file has a syntax error | Fix the file; its steps are missing from the catalog until then |
 | `File is not valid UTF-8, it was skipped` | The file is not written in the encoding StepDoc reads, named in the message | Convert the file, or set `encoding` (or `project.build.sourceEncoding`) to the encoding of your sources |
-| `Step expression of method ... is not a string literal, the step was skipped` | The step text is a constant (`@When(Steps.ADD)`), which StepDoc cannot read without compiling | Write the text in the annotation |
-| `Step "..." has 1 parameter(s) but method ... takes 0` | The step text and the method do not have the same number of parameters. Cucumber will fail on this step | Fix the expression or the method |
+| `Step expression of ... cannot be read from the scanned sources, the step was skipped` | The step text of the named method or lambda is a constant declared outside the scanned directories (a dependency, another module), or a computed value | Write the text in the annotation or the call, or declare the constant in the scanned sources |
+| `Step "..." has 1 parameter(s) but ... takes 0` | The step text and the named method or lambda do not have the same number of parameters. Cucumber will fail on this step | Fix the expression, or the method or lambda |
 | `@StepDoc documents 2 parameter(s) but method ... takes 1` | `@StepDoc` describes more parameters than the method has | Remove the extra `@StepDoc.Param` |
-| `Feature file could not be parsed: ...` | A `.feature` file is not valid Gherkin | Fix the file; `unused-step` is skipped until then |
+| `Parameter type '...' cannot be read from the scanned sources, it was ignored` | The regular expression of a parameter type, or its name in a `ParameterType(...)` call, is a constant declared outside the scanned directories, or a computed value | Write it in the annotation or the call, or declare the constant in the scanned sources |
+| `Parameter type '...' has an invalid regular expression (...), it was ignored` | The regular expression does not compile. Cucumber will fail on it too | Fix the expression |
+| `Parameter type '...' cannot be used: ...` | Cucumber refuses this declaration, for instance a name declared twice or the name of a built-in type | Rename or remove one of the declarations |
+| `Feature file could not be parsed: ...` | A `.feature` file is not valid Gherkin | Fix the file; the rules that read feature files are skipped until then |
 | `Step "..." cannot be matched against feature files: ...` | The step text is not a valid Cucumber Expression or regular expression | Fix the expression; the message gives the column |
 
-Warnings of `check`:
+Warnings of `check`, printed for each rule that reads feature files (`unused-step`,
+`undefined-step`, `ambiguous-step`):
 
 | Message | What to do |
 |---|---|
-| `Rule unused-step was skipped: no .feature file found in [...]` | Set `featureDirectories`, or remove `unused-step` from `rules` if this module has no feature file |
+| `Rule unused-step was skipped: no .feature file found in [...]` | Set `featureDirectories`, or remove these rules from `rules` if this module has no feature file |
 | `Rule unused-step was skipped: some feature files could not be parsed` | Fix the files reported just above as `source-problem` |
 
 Configuration errors stop the build at once and say which setting is wrong, for example
@@ -313,12 +378,15 @@ Configuration errors stop the build at once and say which setting is wrong, for 
 
 ## Limits
 
-- **Constants as step text** (`@When(Steps.ADD)`) are not read: the step is reported and skipped.
-- **Steps written as lambdas** (`cucumber-java8`) are not detected.
-- **Your own parameter types** (`{color}`) are shown by name, without the values they accept.
+- **Constants declared outside the scanned sources** (a dependency, or a module that is not
+  listed in `sourceDirectories`) have no value for StepDoc: a step whose text is such a
+  constant is reported and skipped.
+- **Steps written as lambdas** are only found in a class that implements the `cucumber-java8`
+  interface itself, and a method reference given in place of a lambda has unnamed parameters.
+- **Parameter types that are not declared in the scanned sources**, with `@ParameterType` or
+  a `ParameterType(...)` call of `cucumber-java8` (registered another way, or coming from a
+  dependency), are shown by name only, and assumed to match anything.
 - **Keywords added by a Cucumber newer than StepDoc** are not classified as Given, When or
   Then when imported by name, and not detected behind a `.*` import, until StepDoc is updated.
-- **Steps that no step definition implements** are not reported: Cucumber already tells you
-  when it runs the scenario.
 - **Only Java sources** are read: step definitions written in Kotlin, Scala or Groovy are not
   supported.

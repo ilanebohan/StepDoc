@@ -12,10 +12,10 @@ import java.util.Objects;
  * @param expression     step pattern exactly as Cucumber receives it
  * @param syntax         how Cucumber interprets {@code expression}
  * @param description    what the step does, empty when undocumented
- * @param parameters     method arguments, in declaration order
- * @param declaringClass fully qualified name of the class declaring the method
- * @param methodName     Java method name
- * @param location       position of the step annotation
+ * @param parameters     arguments of the method or lambda, in declaration order
+ * @param declaringClass fully qualified name of the class declaring the step
+ * @param methodName     Java method name, empty for a step written as a lambda
+ * @param location       position of the step annotation, or of the call declaring a lambda step
  */
 public record StepDefinition(
         String keyword,

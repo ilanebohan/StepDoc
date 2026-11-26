@@ -28,18 +28,24 @@ final class CucumberStepAnnotations {
     }
 
     private static final Pattern STEP_PACKAGE = Pattern.compile("io\\.cucumber\\.java\\.[a-z_]+");
+    private static final String GLUE_PACKAGE = "io.cucumber.java";
+    private static final String PARAMETER_TYPE = "ParameterType";
 
     private final Map<String, String> packageBySimpleName;
     private final List<String> wildcardStepPackages;
+    private final boolean gluePackageWildcard;
 
-    private CucumberStepAnnotations(Map<String, String> packageBySimpleName, List<String> wildcardStepPackages) {
+    private CucumberStepAnnotations(Map<String, String> packageBySimpleName, List<String> wildcardStepPackages,
+                                    boolean gluePackageWildcard) {
         this.packageBySimpleName = packageBySimpleName;
         this.wildcardStepPackages = wildcardStepPackages;
+        this.gluePackageWildcard = gluePackageWildcard;
     }
 
     static CucumberStepAnnotations of(CompilationUnit unit) {
         Map<String, String> packageBySimpleName = new HashMap<>();
         List<String> wildcardStepPackages = new ArrayList<>();
+        boolean gluePackageWildcard = false;
         for (ImportDeclaration declaration : unit.getImports()) {
             if (declaration.isStatic()) {
                 continue;
@@ -50,9 +56,11 @@ final class CucumberStepAnnotations {
                         packageBySimpleName.put(name.getIdentifier(), qualifier.asString()));
             } else if (isStepPackage(name.asString())) {
                 wildcardStepPackages.add(name.asString());
+            } else if (GLUE_PACKAGE.equals(name.asString())) {
+                gluePackageWildcard = true;
             }
         }
-        return new CucumberStepAnnotations(packageBySimpleName, wildcardStepPackages);
+        return new CucumberStepAnnotations(packageBySimpleName, wildcardStepPackages, gluePackageWildcard);
     }
 
     /** The step keyword carried by {@code annotation}, or empty when it is not a step annotation. */
@@ -64,6 +72,19 @@ final class CucumberStepAnnotations {
                 .or(() -> importedPackageOf(simpleName))
                 .filter(CucumberStepAnnotations::isStepPackage)
                 .map(pkg -> new StepKeyword(simpleName, kindOf(pkg, simpleName)));
+    }
+
+    /** Whether {@code annotation} is Cucumber's {@code @ParameterType}, which declares a parameter type. */
+    boolean isParameterType(AnnotationExpr annotation) {
+        Name name = annotation.getName();
+        if (!PARAMETER_TYPE.equals(name.getIdentifier())) {
+            return false;
+        }
+        return name.getQualifier()
+                .map(Name::asString)
+                .or(() -> Optional.ofNullable(packageBySimpleName.get(PARAMETER_TYPE)))
+                .map(GLUE_PACKAGE::equals)
+                .orElse(gluePackageWildcard);
     }
 
     /** As in Java, an import by name wins over a wildcard import. */

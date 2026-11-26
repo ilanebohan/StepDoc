@@ -66,23 +66,26 @@ class DocumentationCheckerTest {
         DocumentationChecker.Result result = check(ALL_RULES);
 
         assertThat(result.violations()).isEmpty();
-        assertThat(result.warnings()).singleElement().asString()
-                .startsWith("Rule unused-step was skipped: no .feature file found in ");
+        assertThat(result.warnings()).hasSize(3);
+        assertThat(result.warnings().get(0)).startsWith("Rule unused-step was skipped: no .feature file found in ");
+        assertThat(result.warnings().get(1)).startsWith("Rule undefined-step was skipped: no .feature file found in ");
+        assertThat(result.warnings().get(2)).startsWith("Rule ambiguous-step was skipped: no .feature file found in ");
     }
 
     @Test
-    void doesNotReadFeatureFilesWhenTheUnusedStepRuleIsDisabled() throws IOException {
+    void doesNotReadFeatureFilesWhenNoEnabledRuleNeedsThem() throws IOException {
         Files.writeString(features.resolve("broken.feature"), "This is not Gherkin");
-        Set<LintRule> withoutUnusedStep = EnumSet.complementOf(EnumSet.of(LintRule.UNUSED_STEP));
+        Set<LintRule> withoutFeatureRules =
+                EnumSet.complementOf(EnumSet.of(LintRule.UNUSED_STEP, LintRule.UNDEFINED_STEP, LintRule.AMBIGUOUS_STEP));
 
-        DocumentationChecker.Result result = check(withoutUnusedStep);
+        DocumentationChecker.Result result = check(withoutFeatureRules);
 
         assertThat(result.violations()).isEmpty();
         assertThat(result.warnings()).isEmpty();
     }
 
     private DocumentationChecker.Result check(Set<LintRule> rules) throws IOException {
-        SourceSettings utf8Sources = new SourceSettings(sources, StandardCharsets.UTF_8);
+        SourceSettings utf8Sources = new SourceSettings(List.of(sources), StandardCharsets.UTF_8);
         return new DocumentationChecker().check(utf8Sources, List.of(features), rules);
     }
 }

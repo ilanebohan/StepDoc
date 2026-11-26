@@ -22,7 +22,7 @@ made of pure functions over text, so tests use real objects.
 
 | To test | Do this | Example |
 |---|---|---|
-| The parser | Give Java source in a text block to `parser.parseSource(...)`, assert on the catalog | `StepDefinitionParserTest` |
+| The parser | Give Java source in a text block to `parser.parseSource(...)`, assert on the catalog | `StepDefinitionParserTest`, `LambdaStepsTest` |
 | A renderer or the layout | Build a catalog with the `TestSteps` builders, assert on the output | `MarkdownRendererTest` |
 | The linter | Build a catalog, assert on the violations | `CatalogLinterTest` |
 | Step usage | Write feature files in a `@TempDir`, parse step source, assert on the `StepUsage` | `StepUsageAnalyzerTest` |

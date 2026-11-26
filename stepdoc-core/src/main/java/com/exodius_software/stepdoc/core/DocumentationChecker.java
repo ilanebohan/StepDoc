@@ -31,21 +31,29 @@ public final class DocumentationChecker {
         }
     }
 
+    private static final List<LintRule> RULES_READING_FEATURES =
+            List.of(LintRule.UNUSED_STEP, LintRule.UNDEFINED_STEP, LintRule.AMBIGUOUS_STEP);
+
     private final StepDefinitionParser parser = new StepDefinitionParser();
 
     /**
-     * @param featureDirectories searched for {@code .feature} files, and only read when
-     *                           {@link LintRule#UNUSED_STEP} is enabled
+     * @param featureDirectories searched for {@code .feature} files, and only read when a rule
+     *                           that needs them is enabled
      */
     public Result check(SourceSettings sources, List<Path> featureDirectories, Set<LintRule> enabledRules)
             throws IOException {
-        StepCatalog catalog = parser.parseDirectory(sources.root(), sources.encoding());
-        StepUsage usage = enabledRules.contains(LintRule.UNUSED_STEP)
-                ? StepUsageAnalyzer.analyze(catalog, featureDirectories)
-                : StepUsage.NOT_REQUESTED;
+        StepCatalog catalog = parser.parseDirectories(sources.roots(), sources.encoding());
+        List<LintRule> rulesReadingFeatures = RULES_READING_FEATURES.stream()
+                .filter(enabledRules::contains)
+                .toList();
+        StepUsage usage = rulesReadingFeatures.isEmpty()
+                ? StepUsage.NOT_REQUESTED
+                : StepUsageAnalyzer.analyze(catalog, featureDirectories);
         List<String> warnings = usage.notAnalyzedReason().isEmpty()
                 ? List.of()
-                : List.of("Rule " + LintRule.UNUSED_STEP.id() + " was skipped: " + usage.notAnalyzedReason());
+                : rulesReadingFeatures.stream()
+                        .map(rule -> "Rule " + rule.id() + " was skipped: " + usage.notAnalyzedReason())
+                        .toList();
         return new Result(catalog, CatalogLinter.lint(catalog, usage, enabledRules), warnings);
     }
 }

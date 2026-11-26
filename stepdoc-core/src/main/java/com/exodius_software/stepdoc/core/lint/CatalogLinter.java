@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.exodius_software.stepdoc.core.model.StepCatalog;
@@ -46,6 +47,8 @@ public final class CatalogLinter {
             case UNDOCUMENTED_PARAMETER -> undocumentedParameters(catalog);
             case DUPLICATE_STEP -> duplicateSteps(catalog);
             case UNUSED_STEP -> unusedSteps(usage);
+            case UNDEFINED_STEP -> undefinedSteps(usage);
+            case AMBIGUOUS_STEP -> ambiguousSteps(usage);
             case SOURCE_PROBLEM -> sourceProblems(catalog, usage);
         };
     }
@@ -58,7 +61,11 @@ public final class CatalogLinter {
                 .toList();
     }
 
-    /** Arguments the method does not declare are skipped: {@link LintRule#SOURCE_PROBLEM} already covers them. */
+    /**
+     * Arguments without a name are skipped, as nothing can document them: either the method
+     * does not declare them, which {@link LintRule#SOURCE_PROBLEM} reports, or the step is given
+     * a method reference where a lambda is expected.
+     */
     private static List<Violation> undocumentedParameters(StepCatalog catalog) {
         List<Violation> violations = new ArrayList<>();
         for (StepDefinition step : catalog.steps()) {
@@ -91,6 +98,25 @@ public final class CatalogLinter {
                 .map(step -> new Violation(LintRule.UNUSED_STEP, step.location(),
                         "Step " + quoted(step) + " is not used by any feature file"))
                 .toList();
+    }
+
+    private static List<Violation> undefinedSteps(StepUsage usage) {
+        return usage.undefinedSteps().stream()
+                .map(step -> new Violation(LintRule.UNDEFINED_STEP, step.location(),
+                        "Step \"" + step.text() + "\" has no step definition"))
+                .toList();
+    }
+
+    private static List<Violation> ambiguousSteps(StepUsage usage) {
+        return usage.ambiguousSteps().stream()
+                .map(step -> new Violation(LintRule.AMBIGUOUS_STEP, step.location(), "Step \"" + step.text()
+                        + "\" matches " + step.definitions().size() + " step definitions: "
+                        + step.definitions().stream().map(CatalogLinter::located).collect(Collectors.joining(", "))))
+                .toList();
+    }
+
+    private static String located(StepDefinition step) {
+        return quoted(step) + " at " + step.location();
     }
 
     private static List<Violation> sourceProblems(StepCatalog catalog, StepUsage usage) {
