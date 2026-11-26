@@ -17,7 +17,7 @@
             <plugin>
                 <groupId>com.exodius-software.stepdoc</groupId>
                 <artifactId>stepdoc-maven-plugin</artifactId>
-                <version>0.2.0</version>
+                <version>0.3.0-SNAPSHOT</version>
                 <configuration>
                     <title>Bookshop steps</title>
                 </configuration>
