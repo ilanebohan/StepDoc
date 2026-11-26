@@ -50,7 +50,7 @@ StepDoc is on Maven Central. Add the plugin to the `pom.xml` of your test projec
 <plugin>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-maven-plugin</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
 </plugin>
 ```
 
@@ -60,7 +60,7 @@ To use `@StepDoc`, add the annotations too. It only exists in your sources, so t
 <dependency>
     <groupId>com.exodius-software.stepdoc</groupId>
     <artifactId>stepdoc-annotations</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <scope>test</scope>
 </dependency>
 ```

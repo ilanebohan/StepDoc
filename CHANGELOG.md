@@ -11,6 +11,8 @@ break one of them; such a change is listed under "Changed" or "Removed". The cla
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-26
+
 ### Added
 
 - A step text or a `@StepDoc` text written as a constant is read, when the constant is declared
@@ -31,6 +33,8 @@ break one of them; such a change is listed under "Changed" or "Removed". The cla
 
 ### Changed
 
+- `stepdoc:check` applies two more rules by default, `undefined-step` and `ambiguous-step`: a
+  build that passed with 0.1.0 can now fail. Set `rules` to choose the rules that apply.
 - The problem reported for a step text that cannot be read now says "cannot be read from the
   scanned sources" instead of "is not a string literal".
 
